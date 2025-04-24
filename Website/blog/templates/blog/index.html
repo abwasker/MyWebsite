@@ -1,9 +1,40 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title%}
     My Blog
 {% endblock %}
 
+{% block css_files %}
+<link rel="stylesheet" href="{% static "blog/index.css" ?v=1.0 %}" />
+{% endblock%}
+
 {% block content %}
-    <h1> Welcome to my blog </h1>
+
+
+<section id="welcome">
+    <header>
+        <img src="{% static "blog/images/author-min.JPG" %}" alt="A Notion to Ponder - Author" />
+        <h2> A Notion To Ponder Blog </h2>
+    </header>
+</section>
+<section id="latest-posts">
+    <h2> Latest Posts </h2>
+    <ul>
+        {% include "blog/includes/post.html" %}
+
+
+    </ul>
+        
+</section>
+
+<section id="about">
+    <h2> What I do </h2>
+    <p> I have a diverse range of interests and this blog
+        is a collection of some of them. 
+    </p>
+    <p>
+        At the moment I'm working on trying to be a developer.
+    </p>
+
 {% endblock %}

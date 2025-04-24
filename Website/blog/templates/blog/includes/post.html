@@ -1,0 +1,16 @@
+{% load static %}
+<ul>
+    <li>
+        <article class="post">
+            <a href="{% url "post-details" "ballroom-dancing"%}">
+                <img src="{% static "blog/images/hauntinghurts.jpg" %}" alt="Ballroom Dancing"/>
+                <div class="post_content">
+                    <h3> Ballroom Dancing</h3>
+                    <p> I dance about 12 dance styles that are called ballroom dancing.
+                        At the moment I'm working on a Cha-Cha and tango coreography
+                    </p>
+                </div>
+            </a>
+        </article>
+    </li>
+</ul>

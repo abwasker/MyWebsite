@@ -1,14 +1,23 @@
-{% load static%}
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title> {% block title %} Title {% endblock %} </title> 
-    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'app.css' ?v=1.0 %}">
     {% block css_files %} {%endblock%}
 </head>
 <body>
-    {% block content%} Content {%endblock%}
+    <header id "main-navigation">
+        <h1> <a href="{% url "starting-page" %}"> A Notion To Ponder Blog </a>
+        </h1>
+        <nav>
+            <a href="{% url "all-posts" %}"> All Posts </a>
+        </nav>
+    </header>
+    {% block content%} 
+    {%endblock%}
 </body>
 </html>
