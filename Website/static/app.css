@@ -1,5 +1,6 @@
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Text:ital@0;1&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Oswald&display=swap');
+
 * {
   box-sizing: border-box;
 }
@@ -26,7 +27,7 @@ h3 {
   justify-content: space-between;
   align-items: center;
   padding: 0 10%;
-  position: absolute;
+  position: flex;
   top: 0;
   left: 0;
 }

@@ -1,0 +1,33 @@
+{% extends "base.html"%}
+{% load static  %}
+
+{% block title%}
+    My Blog
+{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static "blog/post.css" ?v=1.0 %}" />
+<link rel="stylesheet" href="{% static "blog/post-detail.css" ?v=1.0 %}" />
+{% endblock%}
+
+{% block content %}
+
+<section id="summary">
+    <h2> Post Title will be dynamic later </h2>
+    <article>
+        <img src ="blog/images/hauntinghurts.jpg" alt="{{ post.title}}" />
+        <address> By Anosh </address>
+        <div>
+            Last updated on <time> April 24th</time>
+        </div>
+    </article>
+</section>
+
+<main>
+    <p>
+        {% lorem 1 b random %}
+        
+    </p>
+</main>
+
+{% endblock %}
