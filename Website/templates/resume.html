@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resume | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'portfolio.css' %}?v=1.1" />
+<link rel="stylesheet" href="{% static 'resume.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<main id="resume-page">
+    <section class="card resume-hero">
+        <p class="eyebrow">Resume Access</p>
+        <h2>Professional Resume</h2>
+        <p>This page is password-protected because it includes personal details.</p>
+    </section>
+
+    {% if not has_access %}
+    <section class="card resume-gate">
+        <h3>Enter Resume Password</h3>
+        <form method="post" class="resume-form">
+            {% csrf_token %}
+            <label for="resume_password">Password</label>
+            <input id="resume_password" name="resume_password" type="password" required />
+            <button type="submit">View Resume</button>
+        </form>
+        <p class="request-note">Need access? Request the password by email.</p>
+        <a
+            class="email-request-button"
+            href="mailto:{{ request_email }}?subject=Resume%20Access%20Request&body=Hi%2C%20I%20would%20like%20access%20to%20the%20resume%20on%20your%20website."
+        >
+            Request Password by Email
+        </a>
+    </section>
+    {% else %}
+    <section class="card">
+        <div class="resume-header-row">
+            <h3>{{ portfolio.name }}</h3>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="lock" />
+                <button class="lock-button" type="submit">Lock Resume</button>
+            </form>
+        </div>
+        <p class="headline">{{ portfolio.headline }}</p>
+        <p>{{ portfolio.summary }}</p>
+    </section>
+
+    <section class="card">
+        <h3>Skills</h3>
+        <ul class="chip-list">
+            {% for skill in portfolio.skills %}
+            <li>{{ skill }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="card">
+        <h3>Experience</h3>
+        {% for item in portfolio.experience %}
+        <article class="resume-item">
+            <h4>{{ item.role }}</h4>
+            <p class="meta">{{ item.company }} | {{ item.period }}</p>
+            <p>{{ item.details }}</p>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="card">
+        <h3>Projects</h3>
+        {% for project in portfolio.projects %}
+        <article class="resume-item">
+            <h4>{{ project.name }}</h4>
+            <p>{{ project.description }}</p>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="card">
+        <h3>Education</h3>
+        <p>{{ portfolio.education }}</p>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}

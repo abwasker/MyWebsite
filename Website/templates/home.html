@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Home | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'landing.css' %}?v=1.0" />
+<link rel="stylesheet" href="{% static 'blog/post.css' %}?v=2.0" />
+{% endblock %}
+
+{% block content %}
+<main>
+    <section id="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <p class="hero-tag">Personal Blog + Portfolio</p>
+            <h2>Rooted ideas, practical code, and work worth sharing.</h2>
+            <p>
+                This site combines writing and projects in one place. Explore recent posts or jump into a
+                curated portfolio built from resume highlights.
+            </p>
+            <div class="hero-cta">
+                <a class="btn btn-primary" href="{% url 'all-posts' %}">Read The Blog</a>
+                <a class="btn btn-secondary" href="{% url 'portfolio' %}">View Portfolio</a>
+                <a class="btn btn-secondary" href="{% url 'poetry-home' %}">Read Poetry</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="latest-posts">
+        <h2>Latest From The Blog</h2>
+        <ul class="post-grid">
+            {% for post in latest_posts %}
+            {% include "blog/includes/post.html" %}
+            {% endfor %}
+        </ul>
+    </section>
+</main>
+{% endblock %}

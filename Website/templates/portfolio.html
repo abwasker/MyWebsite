@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Portfolio | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'portfolio.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<main id="portfolio-page">
+    <section class="intro card">
+        <p class="eyebrow">Portfolio</p>
+        <h2>{{ portfolio.name }}</h2>
+        <p class="headline">{{ portfolio.headline }}</p>
+        <p>{{ portfolio.summary }}</p>
+        <p class="resume-cta">
+            <a href="{% url 'resume' %}">Go To Password-Protected Resume</a>
+        </p>
+    </section>
+
+    <section class="card">
+        <h3>Skills</h3>
+        <ul class="chip-list">
+            {% for skill in portfolio.skills %}
+            <li>{{ skill }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="card">
+        <h3>Featured Experience</h3>
+        {% with item=portfolio.experience.0 %}
+        <article class="resume-item">
+            <h4>{{ item.role }}</h4>
+            <p class="meta">{{ item.company }} | {{ item.period }}</p>
+            <p>{{ item.details }}</p>
+        </article>
+        {% endwith %}
+    </section>
+
+    <section class="card projects-card">
+        <h3>Projects</h3>
+        <div class="project-grid">
+            {% for project in portfolio.projects %}
+            <article class="project-item">
+                <h4>{{ project.name }}</h4>
+                <p>{{ project.description }}</p>
+                <a href="{{ project.url }}">{{ project.link_label }}</a>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+{% endblock %}
