@@ -5,19 +5,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> {% block title %} Title {% endblock %} </title> 
-    <link rel="stylesheet" href="{% static 'app.css' ?v=1.0 %}" />
-    {% block css_files %} {%endblock%}
+    <title>{% block title %}A Notion To Ponder{% endblock %}</title>
+    <script>
+        (function () {
+            var savedTheme = localStorage.getItem("theme");
+            if (savedTheme === "dark" || savedTheme === "light") {
+                document.documentElement.setAttribute("data-theme", savedTheme);
+            } else {
+                var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="{% static 'app.css' %}?v=2.0" />
+    {% block css_files %}{% endblock %}
 </head>
 
 <body>
     <header id="main-navigation">
-        <h1> <a href="{% url "starting-page" %}"> A Notion To Ponder Blog </a></h1>
+        <h1><a href="{% url 'home' %}">A Notion To Ponder</a></h1>
         <nav>
-            <a href="{% url "all-posts" %}"> All Posts </a>
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'all-posts' %}">Blog</a>
+            <a href="{% url 'poetry-home' %}">Poetry</a>
+            <a href="{% url 'portfolio' %}">Portfolio</a>
+            {% if user.is_authenticated %}
+            <a href="{% url 'admin:index' %}">Admin</a>
+            <form method="post" action="{% url 'logout' %}" class="nav-auth-form">
+                {% csrf_token %}
+                <button type="submit" class="nav-auth-button">Log out</button>
+            </form>
+            {% else %}
+            <a href="{% url 'login' %}">Log in</a>
+            <a href="{% url 'signup' %}">Sign up</a>
+            {% endif %}
+            <button type="button" id="theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode">
+                <span class="theme-icon theme-icon-sun" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"></path>
+                    </svg>
+                </span>
+                <span class="theme-icon theme-icon-moon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5Z"></path>
+                    </svg>
+                </span>
+            </button>
         </nav>
     </header>
-    {% block content%} 
-    {%endblock%}
+    {% if messages %}
+    <section class="flash-messages" aria-live="polite">
+        {% for message in messages %}
+        <p class="flash flash-{{ message.tags|default:'info' }}">{{ message }}</p>
+        {% endfor %}
+    </section>
+    {% endif %}
+    {% block content %}{% endblock %}
+    <script>
+        (function () {
+            var root = document.documentElement;
+            var toggleButton = document.getElementById("theme-toggle");
+            if (!toggleButton) {
+                return;
+            }
+
+            function updateToggleState() {
+                var isDark = root.getAttribute("data-theme") === "dark";
+                var label = isDark ? "Switch to light mode" : "Switch to dark mode";
+                toggleButton.setAttribute("aria-label", label);
+                toggleButton.setAttribute("title", label);
+            }
+
+            toggleButton.addEventListener("click", function () {
+                var currentTheme = root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+                var nextTheme = currentTheme === "dark" ? "light" : "dark";
+                root.setAttribute("data-theme", nextTheme);
+                localStorage.setItem("theme", nextTheme);
+                updateToggleState();
+            });
+
+            updateToggleState();
+        })();
+    </script>
 </body>
 </html>
