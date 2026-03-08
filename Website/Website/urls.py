@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from blog import views as blog_views
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("", blog_views.landing_page, name="home"),
@@ -24,5 +26,5 @@ urlpatterns = [
     path("resume/", blog_views.resume_page, name="resume"),
     path("accounts/signup/", blog_views.signup_view, name="signup"),
     path("accounts/", include("django.contrib.auth.urls")),
-    path("", include("blog.urls")), # http://localhost:8000/blog/posts/my
+    path("blog/", include("blog.urls")), # http://localhost:8000/blog/posts/my
 ]

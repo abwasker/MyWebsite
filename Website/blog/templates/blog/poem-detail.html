@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ poem.title }} | Poetry{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'blog/poetry.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<main id="poem-detail-page">
+    <article class="poem-reading-card">
+        <p class="poetry-eyebrow">Poetry</p>
+        <h2>{{ poem.title }}</h2>
+        <p class="poem-meta">{{ poem.date|date:"d M Y" }}</p>
+        <div class="poem-content">{{ poem.content|linebreaksbr }}</div>
+        <p class="back-link"><a href="{% url 'poetry-home' %}">Back to all poems</a></p>
+    </article>
+</main>
+{% endblock %}

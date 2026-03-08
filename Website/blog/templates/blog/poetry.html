@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Poetry | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'blog/poetry.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<main id="poetry-page">
+    <section class="poetry-intro">
+        <p class="poetry-eyebrow">Poetry</p>
+        <h2>Words from quieter hours</h2>
+        <p>
+            A place for original poems. This section is part of the blog, focused on reflective writing.
+        </p>
+    </section>
+
+    <section class="poem-list-wrap">
+        <ul class="poem-list">
+            {% for poem in poems %}
+            <li>
+                <article class="poem-card">
+                    <a href="{% url 'poem-detail' poem.slug %}">
+                        <h3>{{ poem.title }}</h3>
+                        <p class="poem-meta">{{ poem.date|date:"d M Y" }}</p>
+                        <p>{{ poem.excerpt }}</p>
+                    </a>
+                </article>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+</main>
+{% endblock %}
