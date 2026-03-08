@@ -1,0 +1,80 @@
+.auth-page {
+  max-width: 620px;
+}
+
+.auth-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.4rem;
+  box-shadow: 0 10px 26px var(--card-shadow);
+}
+
+.auth-card h2 {
+  margin-top: 0;
+  font-size: clamp(1.9rem, 4vw, 2.5rem);
+}
+
+.auth-copy {
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.auth-form p {
+  margin: 0 0 0.9rem;
+}
+
+.auth-form label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+.auth-form ul {
+  margin: 0.45rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.auth-form button,
+.social-link {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.65rem 0.95rem;
+  background: var(--olive-700);
+  color: #f8f5ec;
+  text-decoration: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.social-link {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.divider {
+  color: var(--muted);
+  margin: 1rem 0 0.6rem;
+}
+
+.auth-help {
+  margin-top: 1rem;
+}
+
+[data-theme="dark"] .auth-form button {
+  background: var(--olive-500);
+  color: #10200d;
+}

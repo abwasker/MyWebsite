@@ -1,0 +1,86 @@
+#resume-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.resume-hero h2 {
+  margin: 0.3rem 0 0.2rem;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+}
+
+.resume-gate h3 {
+  margin-top: 0;
+}
+
+.resume-form {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 420px;
+}
+
+.resume-form label {
+  font-weight: 600;
+}
+
+.resume-form input {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+.resume-form button,
+.email-request-button,
+.lock-button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.resume-form button {
+  background: var(--olive-700);
+  color: #f6f3eb;
+  width: fit-content;
+}
+
+.request-note {
+  margin: 1rem 0 0.65rem;
+  color: var(--muted);
+}
+
+.email-request-button {
+  background: var(--panel-soft);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.resume-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.resume-header-row h3 {
+  margin: 0;
+}
+
+.resume-header-row form {
+  margin: 0;
+}
+
+.lock-button {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+[data-theme="dark"] .resume-form button {
+  background: var(--olive-500);
+  color: #10200d;
+}

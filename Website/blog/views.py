@@ -69,6 +69,49 @@ all_posts = [
 
     ]
 
+portfolio_content = {
+    "name": "Anosh",
+    "headline": "Developer | Creative Thinker | Problem Solver",
+    "summary": "I build clean, practical web experiences with a focus on useful design and maintainable code.",
+    "skills": [
+        "Python",
+        "Django",
+        "HTML/CSS",
+        "JavaScript",
+        "Git & GitHub",
+        "SQL",
+    ],
+    "experience": [
+        {
+            "role": "Freelance Developer",
+            "company": "Independent",
+            "period": "2024 - Present",
+            "details": "Built personal and client web projects with Django, focusing on clear UX and stable deployment workflows.",
+        }
+    ],
+    "projects": [
+        {
+            "name": "A Notion To Ponder",
+            "description": "A combined portfolio and blog platform for publishing posts and showcasing work.",
+            "url": "/",
+            "link_label": "View Website",
+        },
+        {
+            "name": "Personal Learning Projects",
+            "description": "A collection of experiments around APIs, frontend UI patterns, and backend architecture.",
+            "url": "/blog/",
+            "link_label": "Read Blog",
+        },
+        {
+            "name": "Resume Access",
+            "description": "Password-protected resume view for employers and potential clients.",
+            "url": "/resume/",
+            "link_label": "Open Resume",
+        },
+    ],
+    "education": "Add your degree, certifications, or formal training details here.",
+}
+
 def get_date(post):
     return post['date']
 

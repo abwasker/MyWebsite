@@ -1,0 +1,102 @@
+#hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  padding: 3rem;
+  background:
+    linear-gradient(120deg, rgba(28, 39, 24, 0.86), rgba(53, 74, 45, 0.72)),
+    url("/static/blog/images/lake-reflection.jpg") center/cover no-repeat;
+  color: #f6f3ea;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 90% 18%, rgba(169, 191, 145, 0.38) 0%, transparent 38%),
+    radial-gradient(circle at 8% 84%, rgba(179, 150, 102, 0.28) 0%, transparent 36%);
+}
+
+.hero-content {
+  position: relative;
+  max-width: 620px;
+  z-index: 1;
+}
+
+.hero-tag {
+  display: inline-block;
+  margin: 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.16);
+  font-size: 0.88rem;
+}
+
+#hero h2 {
+  margin: 0.9rem 0;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.06;
+}
+
+#hero p {
+  margin: 0.8rem 0 0;
+  max-width: 55ch;
+  line-height: 1.6;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 1.6rem;
+}
+
+.btn {
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 0.78rem 1.2rem;
+}
+
+.btn-primary {
+  background: #f6f3e8;
+  color: #2b3d24;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+}
+
+#latest-posts {
+  margin-top: 2rem;
+  background: #fffdf8;
+  border: 1px solid #d8d2c1;
+  border-radius: 24px;
+  padding: 1.6rem;
+}
+
+#latest-posts h2 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.7rem, 2.8vw, 2.4rem);
+}
+
+.post-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+@media (max-width: 680px) {
+  #hero {
+    padding: 1.75rem;
+    min-height: 360px;
+  }
+}

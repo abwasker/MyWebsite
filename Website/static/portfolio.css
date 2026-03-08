@@ -1,0 +1,119 @@
+#portfolio-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  background: #fffdf8;
+  border: 1px solid #d8d2c1;
+  border-radius: 20px;
+  padding: 1.4rem;
+  box-shadow: 0 10px 26px rgba(29, 37, 24, 0.06);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #5f6856;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.intro h2 {
+  margin: 0.3rem 0 0.2rem;
+  font-size: clamp(2.1rem, 5vw, 3rem);
+}
+
+.headline {
+  color: #44593c;
+  font-weight: 700;
+}
+
+.resume-cta a {
+  display: inline-block;
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+
+h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.8rem;
+}
+
+.chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.chip-list li {
+  border-radius: 999px;
+  border: 1px solid #bfc9ad;
+  background: #edf2e4;
+  color: #25351f;
+  padding: 0.45rem 0.85rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.resume-item + .resume-item {
+  border-top: 1px solid #ece7d8;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+}
+
+.resume-item h4 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.meta {
+  color: #5f6856;
+  margin: 0.25rem 0 0.4rem;
+  font-weight: 600;
+}
+
+.projects-card {
+  overflow: hidden;
+}
+
+.project-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.project-item {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.95rem;
+  background: var(--panel-soft);
+}
+
+.project-item h4 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.project-item p {
+  margin: 0.55rem 0 0.8rem;
+}
+
+.project-item a {
+  text-decoration: none;
+  font-weight: 700;
+  color: var(--olive-700);
+}
+
+[data-theme="dark"] .headline {
+  color: var(--olive-700);
+}
