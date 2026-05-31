@@ -20,6 +20,14 @@
   margin-bottom: 1rem;
 }
 
+.auth-error {
+  border: 1px solid #be5d5d;
+  border-radius: 10px;
+  color: #8b3232;
+  background: color-mix(in srgb, #be5d5d 12%, var(--panel));
+  padding: 0.65rem 0.8rem;
+}
+
 .auth-form p {
   margin: 0 0 0.9rem;
 }
@@ -57,6 +65,12 @@
   text-decoration: none;
   font-weight: 700;
   cursor: pointer;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
 .social-link {

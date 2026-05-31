@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Account Signup | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'auth.css' %}?v=1.1" />
+{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+    <section class="auth-card">
+        <p class="eyebrow">Account Access</p>
+        <h2>Public Signup Is Closed</h2>
+        <p class="auth-copy">
+            For v1, accounts are created by the site admin. You can still read the public blog and poetry pages without an account.
+        </p>
+        <div class="auth-actions">
+            <a class="social-link" href="{% url 'login' %}">Log In</a>
+            <a class="social-link" href="{% url 'all-posts' %}">Read The Blog</a>
+        </div>
+        <p class="auth-help">
+            Admin users can create and manage accounts from the Django admin.
+        </p>
+    </section>
+</main>
+{% endblock %}

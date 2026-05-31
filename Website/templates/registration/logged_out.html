@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Logged Out | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'auth.css' %}?v=1.1" />
+{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+    <section class="auth-card">
+        <p class="eyebrow">Account Access</p>
+        <h2>You Are Logged Out</h2>
+        <p class="auth-copy">Your session has ended.</p>
+        <a class="social-link" href="{% url 'login' %}">Log In Again</a>
+    </section>
+</main>
+{% endblock %}
