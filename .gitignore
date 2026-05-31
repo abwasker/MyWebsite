@@ -8,6 +8,12 @@ __pycache__/
 *.pyo
 *.pyd
 venv/
+.venv/
+
+# Ignore runtime logs
+*.log
+Website/logs/
+Website/media/
 
 # Ignore IDE files
 .vscode/

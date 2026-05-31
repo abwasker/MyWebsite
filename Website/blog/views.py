@@ -1,62 +1,13 @@
-from datetime import date
-
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login
-from django.http import Http404
+from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.core.cache import cache
+from django.urls import reverse
 
-from .forms import CommentForm, SignUpForm
-from .models import Comment, Poem
-
-all_posts = [
-    {
-        "slug": "ballroom-dancing",
-        "image": "post-1.jpg",
-        "author": "Anosh",
-        "date": date(2025, 4, 24),
-        "title": "Ballroom Dancing",
-        "excerpt": "I dance around 12 ballroom styles. Right now I am rehearsing a new Cha-Cha and Tango choreography.",
-        "content": """
-            This year I started building routines with more intention. Every practice session has a single goal,
-            and that has helped me improve faster with cleaner footwork and better timing.
-
-            I also started recording sessions and reviewing posture, frame, and musicality. It is uncomfortable at first,
-            but seeing each detail has become one of the best learning tools I have used.
-        """,
-    },
-    {
-        "slug": "hike-in-the-mountains",
-        "image": "post-2.jpg",
-        "author": "Max",
-        "date": date(2024, 7, 21),
-        "title": "Mountain Hiking",
-        "excerpt": "A mountain trail, changing weather, and a view that made every uphill step worth it.",
-        "content": """
-            The trail started easy, but the final ascent was steep and technical. Slowing down and pacing each section
-            made the whole hike more enjoyable.
-
-            At the summit, cloud cover lifted for a few minutes and the entire valley opened up. Moments like that
-            are exactly why I keep going back outdoors.
-        """,
-    },
-    {
-        "slug": "into-the-woods",
-        "image": "post-3.jpg",
-        "author": "Maximilian",
-        "date": date(2020, 8, 5),
-        "title": "Nature At Its Best",
-        "excerpt": "Walking through the woods resets the mind and always leaves me with fresh ideas.",
-        "content": """
-            Time in nature gives me creative energy I do not get from screens. I carry a notebook on these walks
-            and collect ideas for writing, product features, and visual concepts.
-
-            This habit has become a reliable way to think clearly, especially when I am stuck on a technical problem.
-        """,
-    },
-]
+from .forms import CommentForm
+from .models import BlogPost, Comment, Poem
 
 portfolio_content = {
     "name": "Anosh",
@@ -102,17 +53,13 @@ portfolio_content = {
 }
 
 
-def get_date(post):
-    return post["date"]
-
-
 def landing_page(request):
-    sorted_posts = sorted(all_posts, key=get_date, reverse=True)
+    latest_posts = BlogPost.objects.published().select_related("category")[:3]
     return render(
         request,
         "home.html",
         {
-            "latest_posts": sorted_posts[:3],
+            "latest_posts": latest_posts,
         },
     )
 
@@ -152,12 +99,16 @@ def resume_page(request):
 
 
 def blog_home(request):
-    sorted_posts = sorted(all_posts, key=get_date, reverse=True)
+    posts = (
+        BlogPost.objects.published()
+        .select_related("category")
+        .prefetch_related("tags")
+    )
     return render(
         request,
         "blog/all-posts.html",
         {
-            "all_posts": sorted_posts,
+            "all_posts": posts,
         },
     )
 
@@ -184,18 +135,23 @@ def poem_detail(request, slug):
 
 
 def post_details(request, slug):
-    identified_post = next((post for post in all_posts if post["slug"] == slug), None)
-    if identified_post is None:
-        raise Http404("Post not found.")
+    identified_post = get_object_or_404(
+        BlogPost.objects.published().select_related("category").prefetch_related("tags"),
+        slug=slug,
+    )
 
     approved_comments = (
-        Comment.objects.filter(post_slug=slug, is_approved=True)
+        identified_post.comments.filter(is_approved=True)
         .select_related("user")
     )
 
     if request.method == "POST":
         if not request.user.is_authenticated:
-            return redirect(f"/accounts/login/?next={request.path}")
+            return redirect_to_login(request.get_full_path(), login_url=reverse("login"))
+
+        if not identified_post.allow_comments:
+            messages.error(request, "Comments are closed for this post.")
+            return redirect("post-details", slug=slug)
 
         comment_form = CommentForm(request.POST)
         if comment_form.is_valid():
@@ -208,8 +164,9 @@ def post_details(request, slug):
                 comment_form.add_error(None, rate_limit_message)
             else:
                 Comment.objects.create(
+                    post=identified_post,
                     post_slug=slug,
-                    post_title=identified_post["title"],
+                    post_title=identified_post.title,
                     user=request.user,
                     content=comment_form.cleaned_data["content"],
                 )
@@ -219,7 +176,7 @@ def post_details(request, slug):
                 )
                 return redirect("post-details", slug=slug)
     else:
-        comment_form = CommentForm()
+        comment_form = CommentForm() if identified_post.allow_comments else None
 
     return render(
         request,
@@ -237,17 +194,13 @@ def signup_view(request):
         return redirect("home")
 
     if request.method == "POST":
-        form = SignUpForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "Your account has been created.")
-            next_url = request.POST.get("next") or request.GET.get("next")
-            return redirect(next_url or "home")
-    else:
-        form = SignUpForm()
+        messages.info(
+            request,
+            "Public signup is closed for v1. Accounts are created by the site admin.",
+        )
+        return redirect("signup")
 
-    return render(request, "registration/signup.html", {"form": form})
+    return render(request, "registration/signup.html")
 
 
 def _check_comment_rate_limit(user_id):

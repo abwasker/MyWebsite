@@ -1,0 +1,149 @@
+#poetry-page,
+#poem-detail-page {
+  width: min(900px, 92%);
+  margin: 2.5rem auto 4rem;
+}
+
+.poetry-intro,
+.poem-list-wrap,
+.poem-reading-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 10px 26px var(--card-shadow);
+}
+
+.poetry-intro {
+  padding: 1.6rem;
+}
+
+.poetry-eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.poetry-intro h2,
+.poem-reading-card h2 {
+  margin: 0.35rem 0 0.6rem;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.poetry-intro p:last-child {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.poem-list-wrap {
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.poem-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.poem-card a {
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-soft);
+  padding: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.poem-card a:hover,
+.poem-card a:active {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px var(--card-shadow);
+}
+
+.poem-card h3 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.poem-card p:last-child {
+  margin-bottom: 0;
+  line-height: 1.55;
+}
+
+.poem-meta {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.poem-reading-card {
+  padding: 1.6rem;
+}
+
+.poem-content {
+  margin-top: 1.2rem;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.25rem;
+  line-height: 1.75;
+}
+
+.poem-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.poem-content blockquote {
+  border-left: 4px solid var(--moss);
+  margin: 1rem 0;
+  padding: 0.1rem 0 0.1rem 1rem;
+  color: var(--muted);
+}
+
+.poem-content pre {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  padding: 1rem;
+}
+
+.poem-content code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.94em;
+}
+
+.poem-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.poem-content th,
+.poem-content td {
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+}
+
+.poem-content th {
+  background: var(--panel-soft);
+}
+
+.back-link {
+  margin: 1.4rem 0 0;
+}
+
+.back-link a {
+  color: var(--olive-700);
+  font-weight: 700;
+  text-decoration: none;
+}

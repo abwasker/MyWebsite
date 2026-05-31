@@ -1,16 +1,16 @@
 {% load static %}
-<ul>
-    <li>
-        <article class="post">
-            <a href="{% url "post-details" post.slug %}">
-                <img src="{% static "blog/images/"|add:post.image %}" alt="Ballroom Dancing"/>
-                <div class="post_content">
-                    <h3> {{ post.title }} </h3>
-                    <p> 
-                        {{post.excerpt}}
-                    </p>
-                </div>
-            </a>
-        </article>
-    </li>
-</ul>
+<li>
+    <article class="post">
+        <a href="{% url 'post-details' post.slug %}">
+            {% if post.cover_upload %}
+            <img src="{{ post.cover_upload.url }}" alt="{{ post.title }}" />
+            {% elif post.cover_image %}
+            <img src="{% static 'blog/images/'|add:post.cover_image %}" alt="{{ post.title }}" />
+            {% endif %}
+            <div class="post_content">
+                <h3>{{ post.title }}</h3>
+                <p>{{ post.excerpt }}</p>
+            </div>
+        </a>
+    </article>
+</li>

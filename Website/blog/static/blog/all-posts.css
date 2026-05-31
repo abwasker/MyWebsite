@@ -1,43 +1,32 @@
-body {
-    background-color: #e7e7e7;
-  }
-  
-  #main-navigation {
-    background: linear-gradient(to right top, #3B5249, #099b34);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  }
-  
-  #all-posts {
-    margin: 7rem auto;
-    width: 90%;
-    max-width: 60rem;
-  }
-  
-  #all-posts h2 {
-    text-align: center;
-    font-size: 2rem;
-    color: #2e2e2e;
-    margin: 3rem 0;
-  }
-  
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-    gap: 1.5rem;
-  }
-  
-  .post img {
-    width: 7rem;
-    height: 7rem;
-  }
-  
-  .post a {
-    height: 22rem;
-    transform-origin: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    border-radius: 12px;
-    background-color: white;
-  }
+#all-posts {
+  width: min(1100px, 92%);
+  margin: 2.5rem auto 4rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 1.6rem;
+  box-shadow: 0 10px 26px var(--card-shadow);
+}
+
+.blog-eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+#all-posts h2 {
+  margin: 0.35rem 0 1rem;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+}
+
+.post-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}

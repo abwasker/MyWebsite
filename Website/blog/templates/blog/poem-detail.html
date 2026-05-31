@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load markdown_extras %}
 
 {% block title %}{{ poem.title }} | Poetry{% endblock %}
 
@@ -13,7 +14,7 @@
         <p class="poetry-eyebrow">Poetry</p>
         <h2>{{ poem.title }}</h2>
         <p class="poem-meta">{{ poem.date|date:"d M Y" }}</p>
-        <div class="poem-content">{{ poem.content|linebreaksbr }}</div>
+        <div class="poem-content">{% render_markdown poem.content poem %}</div>
         <p class="back-link"><a href="{% url 'poetry-home' %}">Back to all poems</a></p>
     </article>
 </main>
