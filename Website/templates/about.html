@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}About | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'about.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<main id="about-page">
+    <section class="intro card">
+        <p class="eyebrow">About</p>
+        <h2>About Me</h2>
+        <p class="headline">Writer, builder, and perpetual student of ideas.</p>
+        <p>
+            A Notion To Ponder is my corner of the web &mdash; a place where the things I think
+            about, build, and write down can live together. It is equal parts notebook, workshop,
+            and portfolio.
+        </p>
+    </section>
+
+    <section class="card">
+        <h3>Writing</h3>
+        <p>
+            Much of what I care about starts as writing. The blog is where I work through ideas in
+            long form &mdash; from tradition and interpretation to whatever I happen to be reading.
+            Poetry lives here too, kept deliberately quiet and uncluttered on its own pages.
+        </p>
+    </section>
+
+    <section class="card">
+        <h3>Building</h3>
+        <p>
+            On the technical side I build practical web projects, this site among them &mdash; a
+            Django application I use to publish, experiment, and learn. I gravitate toward clean,
+            maintainable code and design that stays out of the reader's way.
+        </p>
+    </section>
+
+    <section class="card">
+        <h3>Mathematics &amp; Physics</h3>
+        <p>
+            I have a standing curiosity about mathematics and physics, and I use writing as a way to
+            think them through. You will find those explorations woven into the blog rather than
+            walled off &mdash; a running attempt to understand a little more than I did yesterday.
+        </p>
+    </section>
+
+    <section class="card">
+        <h3>Elsewhere</h3>
+        <p>
+            If you would like to see my professional background, the
+            <a href="{% url 'portfolio' %}">portfolio</a> collects skills, experience, and projects,
+            with a password-protected <a href="{% url 'resume' %}">resume</a> available on request.
+            Otherwise, the best introduction is simply to
+            <a href="{% url 'all-posts' %}">read the blog</a>.
+        </p>
+    </section>
+</main>
+{% endblock %}

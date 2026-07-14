@@ -1,0 +1,13 @@
+/* About page styling.
+   The global dark-mode rules in app.css paint every .card with a panel
+   background and a large drop shadow (and turn <main> into a panel). On this
+   text-only page that reads as heavy stacked bands. Neutralize it here so the
+   dark theme keeps the same smooth, box-free flow as the light theme.
+   Scoped to #about-page and left as no-ops in light mode. */
+
+[data-theme="dark"] #about-page,
+[data-theme="dark"] #about-page .card {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+}
