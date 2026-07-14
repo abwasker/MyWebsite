@@ -29,6 +29,7 @@
             <a href="{% url 'all-posts' %}">Blog</a>
             <a href="{% url 'poetry-home' %}">Poetry</a>
             <a href="{% url 'portfolio' %}">Portfolio</a>
+            <a href="{% url 'about' %}">About</a>
             {% if user.is_authenticated %}
             <a href="{% url 'admin:index' %}">Admin</a>
             <form method="post" action="{% url 'logout' %}" class="nav-auth-form">

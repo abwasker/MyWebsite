@@ -9,6 +9,7 @@ __pycache__/
 *.pyd
 venv/
 .venv/
+envAW/
 
 # Ignore runtime logs
 *.log

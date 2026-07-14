@@ -68,6 +68,10 @@ def portfolio_page(request):
     return render(request, "portfolio.html", {"portfolio": portfolio_content})
 
 
+def about_page(request):
+    return render(request, "about.html")
+
+
 def resume_page(request):
     session_key = "resume_access_granted"
     access_password = getattr(settings, "RESUME_ACCESS_PASSWORD", "viewresumeonwebsite")
