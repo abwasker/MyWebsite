@@ -129,11 +129,19 @@ def poetry_home(request):
 
 def poem_detail(request, slug):
     identified_poem = get_object_or_404(Poem, slug=slug)
+    related_musing = None
+    if identified_poem.related_musing_post_id:
+        related_musing = (
+            BlogPost.objects.published()
+            .filter(pk=identified_poem.related_musing_post_id)
+            .first()
+        )
     return render(
         request,
         "blog/poem-detail.html",
         {
             "poem": identified_poem,
+            "related_musing": related_musing,
         },
     )
 

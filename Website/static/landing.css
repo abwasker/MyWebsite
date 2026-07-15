@@ -1,7 +1,12 @@
+#home-page {
+  background: transparent;
+}
+
 #hero {
   position: relative;
   overflow: hidden;
-  border-radius: 28px;
+  border-radius: 32px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 40px rgba(15, 22, 15, 0.35);
   min-height: 420px;
   display: flex;
   align-items: center;
@@ -15,6 +20,7 @@
 .hero-overlay {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background:
     radial-gradient(circle at 90% 18%, rgba(169, 191, 145, 0.38) 0%, transparent 38%),
     radial-gradient(circle at 8% 84%, rgba(179, 150, 102, 0.28) 0%, transparent 36%);
@@ -76,8 +82,9 @@
   margin-top: 2rem;
   background: #fffdf8;
   border: 1px solid #d8d2c1;
-  border-radius: 24px;
+  border-radius: 28px;
   padding: 1.6rem;
+  box-shadow: 0 12px 30px rgba(15, 22, 15, 0.12);
 }
 
 #latest-posts h2 {

@@ -5,7 +5,7 @@
 {% block title %}{{ poem.title }} | Poetry{% endblock %}
 
 {% block css_files %}
-<link rel="stylesheet" href="{% static 'blog/poetry.css' %}?v=1.0" />
+<link rel="stylesheet" href="{% static 'blog/poetry.css' %}?v=1.2" />
 {% endblock %}
 
 {% block content %}
@@ -15,6 +15,9 @@
         <h2>{{ poem.title }}</h2>
         <p class="poem-meta">{{ poem.date|date:"d M Y" }}</p>
         <div class="poem-content">{% render_markdown poem.content poem %}</div>
+        {% if related_musing %}
+        <p class="musing-link"><a href="{% url 'post-details' related_musing.slug %}">Read the musing →</a></p>
+        {% endif %}
         <p class="back-link"><a href="{% url 'poetry-home' %}">Back to all poems</a></p>
     </article>
 </main>
