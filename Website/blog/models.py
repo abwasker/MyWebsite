@@ -85,6 +85,13 @@ class Poem(models.Model):
     date = models.DateField()
     excerpt = models.CharField(max_length=280)
     content = models.TextField()
+    related_musing_post = models.ForeignKey(
+        BlogPost,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="linked_poems",
+    )
 
     class Meta:
         ordering = ["-date", "-id"]

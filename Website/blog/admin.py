@@ -119,9 +119,17 @@ class PoemAdmin(admin.ModelAdmin):
     search_fields = ("title", "excerpt", "content")
     prepopulated_fields = {"slug": ("title",)}
     readonly_fields = ("rendered_preview",)
+    autocomplete_fields = ("related_musing_post",)
     inlines = (PoemContentImageInline,)
     fieldsets = (
         (None, {"fields": ("title", "slug", "date", "excerpt", "content")}),
+        (
+            "Related musing",
+            {
+                "fields": ("related_musing_post",),
+                "description": "Optional. Link this poem to a published blog post where the musing and comments live.",
+            },
+        ),
         ("Preview", {"fields": ("rendered_preview",)}),
     )
 

@@ -2,6 +2,7 @@
 #poem-detail-page {
   width: min(900px, 92%);
   margin: 2.5rem auto 4rem;
+  background: transparent;
 }
 
 .poetry-intro,
@@ -146,4 +147,20 @@
   color: var(--olive-700);
   font-weight: 700;
   text-decoration: none;
+}
+
+.musing-link {
+  margin: 1.8rem 0 0;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
+}
+
+.musing-link a {
+  color: var(--olive-700);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.musing-link a:hover {
+  text-decoration: underline;
 }

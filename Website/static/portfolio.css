@@ -1,6 +1,7 @@
 #portfolio-page {
   display: grid;
   gap: 1rem;
+  background: transparent;
 }
 
 .card {
