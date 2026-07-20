@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Speed Reader | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'speedreader.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<main id="speed-reader-page">
+    <section class="sr-intro">
+        <p class="sr-eyebrow">Tools</p>
+        <h2>Speed Reader</h2>
+        <p>
+            Paste any text, set your pace, and read one word at a time. Spritz mode highlights the
+            optimal recognition point so your eyes can stay still.
+        </p>
+    </section>
+
+    <div class="sr-grid">
+        <section class="sr-card sr-input">
+            <label for="textInput">Paste text</label>
+            <textarea id="textInput" placeholder="Paste an article, chapter, email — anything. Then hit Load text and Play."></textarea>
+            <div class="sr-input-foot">
+                <span class="sr-meta" id="wordCount">0 words loaded</span>
+                <button id="loadBtn">Load text</button>
+            </div>
+        </section>
+
+        <section class="sr-card sr-output">
+            <div class="small-row">
+                <label>Display mode</label>
+                <div class="toggle-group" id="modeToggle">
+                    <button data-mode="spritz" class="active">Spritz / ORP</button>
+                    <button data-mode="context">Word + Context</button>
+                </div>
+            </div>
+
+            <div class="dial-row">
+                <label for="wpm" class="sr-speed-label">Speed</label>
+                <input type="range" id="wpm" min="50" max="1500" step="10" value="400">
+                <div class="wpm-display"><span id="wpmValue">400</span><small>wpm</small></div>
+            </div>
+
+            <div class="reader">
+                <div class="reader-status" id="status">Ready</div>
+                <div class="reader-stage" id="stage">
+                    <div class="word-spritz">
+                        <span class="pre"></span><span class="orp">·</span><span class="post"></span>
+                    </div>
+                </div>
+                <div class="progress" id="progress" title="Click to jump">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="playBtn" class="primary">▶ Play</button>
+                <button id="restartBtn">↺ Restart</button>
+                <button id="back10Btn">⏪ -10</button>
+                <button id="fwd10Btn">⏩ +10</button>
+                <span class="sr-spacer"></span>
+                <span class="sr-meta" id="position">0 / 0</span>
+            </div>
+
+            <div class="keyboard-hint">
+                <kbd>Space</kbd> play/pause &nbsp; <kbd>R</kbd> restart &nbsp; <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> skip 10 &nbsp; <kbd>&uarr;</kbd>/<kbd>&darr;</kbd> &plusmn;25 wpm
+            </div>
+        </section>
+    </div>
+</main>
+
+<script src="{% static 'speedreader.js' %}?v=1.0"></script>
+{% endblock %}
