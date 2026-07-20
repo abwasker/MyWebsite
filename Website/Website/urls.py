@@ -26,6 +26,7 @@ urlpatterns = [
     path("", blog_views.landing_page, name="home"),
     path("portfolio/", blog_views.portfolio_page, name="portfolio"),
     path("about/", blog_views.about_page, name="about"),
+    path("speed-reader/", blog_views.speed_reader_page, name="speed-reader"),
     path("resume/", blog_views.resume_page, name="resume"),
     path("accounts/signup/", blog_views.signup_view, name="signup"),
     path("accounts/", include("django.contrib.auth.urls")),
