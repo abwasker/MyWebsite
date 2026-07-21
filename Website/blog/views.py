@@ -76,6 +76,10 @@ def speed_reader_page(request):
     return render(request, "speedreader.html")
 
 
+def links_page(request):
+    return render(request, "links.html")
+
+
 def resume_page(request):
     session_key = "resume_access_granted"
     access_password = getattr(settings, "RESUME_ACCESS_PASSWORD", "viewresumeonwebsite")
