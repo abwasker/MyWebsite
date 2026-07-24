@@ -11,6 +11,12 @@ venv/
 .venv/
 envAW/
 
+# Ignore secrets / environment (the template .env.example IS committed)
+.env
+
+# Ignore collectstatic output (regenerated on the server)
+Website/staticfiles/
+
 # Ignore runtime logs
 *.log
 Website/logs/

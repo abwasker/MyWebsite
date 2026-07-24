@@ -1,0 +1,8 @@
+# Production-only dependencies. Installed ON THE SERVER in addition to
+# requirements.txt. Not installed for local dev on Windows:
+#   - gunicorn is the WSGI server Nginx proxies to (does not run on Windows).
+#   - mysqlclient is the MySQL driver (needs system build libs; local dev uses SQLite).
+# Install on the server with:  pip install -r requirements.txt -r requirements-prod.txt
+-r requirements.txt
+gunicorn==23.0.0
+mysqlclient==2.2.7

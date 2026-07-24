@@ -10,22 +10,45 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from a local .env file (repo root) if present.
+# In production, systemd injects the real env vars and there is no .env, so
+# this is simply a no-op there. Values already set in the environment win.
+load_dotenv(BASE_DIR.parent / ".env")
+
+
+def env_bool(name, default=False):
+    """Read a boolean-ish environment variable ("1", "true", "yes", "on")."""
+    return os.environ.get(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-*^60)mnxs*pik%4jx1i(1f2$hizts1s*p#8318)&yhy14g8ab8'
+# Read from the environment in production; the insecure literal is a LOCAL-ONLY
+# fallback so dev works with no config. Production MUST set SECRET_KEY.
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "django-insecure-*^60)mnxs*pik%4jx1i(1f2$hizts1s*p#8318)&yhy14g8ab8",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Defaults to False (secure by default). Local dev opts in via DJANGO_DEBUG=True in .env.
+DEBUG = env_bool("DJANGO_DEBUG", False)
 
-ALLOWED_HOSTS = []
+# Hosts/domains this site is allowed to serve. Required once DEBUG is False.
+# Comma-separated in DJANGO_ALLOWED_HOSTS; in local dev (DEBUG on) fall back to localhost.
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -76,12 +99,27 @@ WSGI_APPLICATION = 'Website.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Local dev stays on SQLite with zero configuration. Production sets DB_ENGINE=mysql
+# (plus the DB_* vars) to switch engines without any code change.
+if os.environ.get("DB_ENGINE") == "mysql":
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ['DB_NAME'],
+            'USER': os.environ['DB_USER'],
+            'PASSWORD': os.environ['DB_PASSWORD'],
+            'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': {'charset': 'utf8mb4'},
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -120,9 +158,14 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Source static files (checked into the repo, served by runserver in dev).
 STATICFILES_DIRS = [
     BASE_DIR / "static"
 ]
+
+# Destination `collectstatic` gathers everything into for production; Nginx
+# serves this directory directly. Kept separate from STATICFILES_DIRS above.
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -130,6 +173,32 @@ MEDIA_ROOT = BASE_DIR / "media"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "home"
+
+# Resume page gate. The resume view reads these via getattr(settings, ...);
+# defining them here from the environment makes them configurable (dev fallbacks).
+RESUME_ACCESS_PASSWORD = os.environ.get("RESUME_ACCESS_PASSWORD", "viewresumeonwebsite")
+RESUME_REQUEST_EMAIL = os.environ.get("RESUME_REQUEST_EMAIL", "hello@example.com")
+
+# CSRF trust for the production HTTPS domain(s) — required for admin/comment POSTs.
+# Comma-separated full origins, e.g. "https://anotiontoponder.com,https://www.anotiontoponder.com".
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
+]
+
+# Production-only security hardening. Gated on DEBUG so local HTTP dev is unaffected.
+if not DEBUG:
+    # We terminate TLS at Nginx/Cloudflare and proxy plain HTTP to Django on localhost.
+    # This tells Django to treat requests as secure when the proxy sets X-Forwarded-Proto=https,
+    # preventing an infinite redirect loop with SECURE_SSL_REDIRECT. Safe only behind a trusted proxy.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True          # send any HTTP request to HTTPS
+    SESSION_COOKIE_SECURE = True        # session cookie only over HTTPS
+    CSRF_COOKIE_SECURE = True           # CSRF cookie only over HTTPS
+    SECURE_CONTENT_TYPE_NOSNIFF = True  # block MIME-type sniffing
+    # HSTS: tell browsers to use HTTPS only. Sticky — start small (1 hour), raise
+    # to a year + add `preload` once HTTPS is proven stable.
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
