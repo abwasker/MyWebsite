@@ -1,0 +1,117 @@
+/* Standalone Linktree hub (/links/).
+   app.css loads first for the rustic palette, fonts, theme variables, and the
+   body background; this file only handles the centered hub layout. No site
+   header/nav — this is a social-media bio landing page. Light/dark come from
+   the app.css theme variables automatically. */
+
+.links-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.25rem;
+}
+
+.linktree {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.lt-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 26px var(--card-shadow);
+  color: var(--olive-700);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: 2.4rem;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+}
+
+.lt-name {
+  margin: 0;
+  font-size: clamp(1.7rem, 5vw, 2.3rem);
+  color: var(--text);
+}
+
+.lt-tagline {
+  margin: 0.35rem 0 1.6rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.5;
+  max-width: 34ch;
+}
+
+.lt-links {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 20px var(--card-shadow);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: transform 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.link-btn:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--olive-500) 55%, var(--border));
+  color: var(--olive-700);
+}
+.link-btn .ext {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.lt-footer {
+  margin-top: 1.8rem;
+  font-size: 0.85rem;
+}
+.lt-footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.lt-footer a:hover {
+  color: var(--olive-700);
+}
+
+/* Corner theme toggle — reuses #theme-toggle base styles from app.css, but
+   overrides the nav-tuned colors (which assume the dark olive nav bar) so the
+   icon reads against the page background in both themes. The extra `.links-toggle`
+   class keeps specificity above the plain #theme-toggle rules. */
+#theme-toggle.links-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: 0 6px 16px var(--card-shadow);
+}
+#theme-toggle.links-toggle:hover,
+#theme-toggle.links-toggle:active {
+  background: var(--bg-soft);
+}

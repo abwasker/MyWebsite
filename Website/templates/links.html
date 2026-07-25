@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Links | A Notion To Ponder</title>
+    <meta name="description" content="A Notion To Ponder — writing, poetry, and projects by Anosh." />
+    <script>
+        (function () {
+            var savedTheme = localStorage.getItem("theme");
+            if (savedTheme === "dark" || savedTheme === "light") {
+                document.documentElement.setAttribute("data-theme", savedTheme);
+            } else {
+                var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="{% static 'app.css' %}?v=2.0" />
+    <link rel="stylesheet" href="{% static 'links.css' %}?v=1.0" />
+</head>
+
+<body class="links-body">
+    <button type="button" id="theme-toggle" class="links-toggle" aria-label="Switch to dark mode" title="Switch to dark mode">
+        <span class="theme-icon theme-icon-sun" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"></path>
+            </svg>
+        </span>
+        <span class="theme-icon theme-icon-moon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5Z"></path>
+            </svg>
+        </span>
+    </button>
+
+    <main class="linktree">
+        {# Placeholder monogram — swap for a real photo/logo at static/images/ later. #}
+        <div class="lt-avatar" aria-hidden="true">AP</div>
+        <h1 class="lt-name">A Notion To Ponder</h1>
+        <p class="lt-tagline">Ideas worth considering. Lives worth living.</p>
+
+        <nav class="lt-links" aria-label="Links">
+            <a class="link-btn" href="{% url 'home' %}">Enter the Site</a>
+            <a class="link-btn" href="{% url 'all-posts' %}">Blog</a>
+            <a class="link-btn" href="{% url 'poetry-home' %}">Poetry</a>
+            <a class="link-btn" href="{% url 'portfolio' %}">Portfolio</a>
+
+            {# TODO: replace the placeholder href="#" values below with real URLs. #}
+            <a class="link-btn link-ext" href="https://substack.com/@anotiontoponder" target="_blank" rel="noopener">Substack <span class="ext" aria-hidden="true">&#8599;</span></a>
+            <a class="link-btn link-ext" href="https://github.com/abwasker/" target="_blank" rel="noopener">GitHub <span class="ext" aria-hidden="true">&#8599;</span></a>
+            <a class="link-btn link-ext" href="https://www.instagram.com/anotiontoponder/" target="_blank" rel="noopener">Instagram <span class="ext" aria-hidden="true">&#8599;</span></a>
+            <a class="link-btn link-ext" href="https://x.com/ANotionToPonder" target="_blank" rel="noopener">Tweets <span class="ext" aria-hidden="true">&#8599;</span></a>
+            {# TODO: replace with your PUBLIC contact email. #}
+            <a class="link-btn" href="mailto:hello@example.com">Email</a>
+        </nav>
+
+        <footer class="lt-footer">
+            <a href="{% url 'home' %}">anotiontoponder.com</a>
+        </footer>
+    </main>
+
+    <script>
+        (function () {
+            var root = document.documentElement;
+            var toggleButton = document.getElementById("theme-toggle");
+            if (!toggleButton) {
+                return;
+            }
+
+            function updateToggleState() {
+                var isDark = root.getAttribute("data-theme") === "dark";
+                var label = isDark ? "Switch to light mode" : "Switch to dark mode";
+                toggleButton.setAttribute("aria-label", label);
+                toggleButton.setAttribute("title", label);
+            }
+
+            toggleButton.addEventListener("click", function () {
+                var currentTheme = root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+                var nextTheme = currentTheme === "dark" ? "light" : "dark";
+                root.setAttribute("data-theme", nextTheme);
+                localStorage.setItem("theme", nextTheme);
+                updateToggleState();
+            });
+
+            updateToggleState();
+        })();
+    </script>
+</body>
+</html>
