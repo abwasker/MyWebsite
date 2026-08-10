@@ -3,3 +3,4 @@ Markdown==3.10.2
 nh3==0.3.5
 Pillow==12.2.0
 python-dotenv==1.0.1
+requests==2.34.2

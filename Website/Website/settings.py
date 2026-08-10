@@ -55,6 +55,7 @@ if DEBUG and not ALLOWED_HOSTS:
 
 INSTALLED_APPS = [
     'blog', #make django aware of our app: blog
+    'listening', # private Spotify listening tracker (see the Spotify Listening Tracker scope)
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -178,6 +179,16 @@ LOGOUT_REDIRECT_URL = "home"
 # defining them here from the environment makes them configurable (dev fallbacks).
 RESUME_ACCESS_PASSWORD = os.environ.get("RESUME_ACCESS_PASSWORD", "viewresumeonwebsite")
 RESUME_REQUEST_EMAIL = os.environ.get("RESUME_REQUEST_EMAIL", "hello@example.com")
+
+# Spotify listening tracker (see the "Spotify Listening Tracker" scope).
+# The refresh token is the durable credential; the one-time browser authorization
+# happens LOCALLY, so the server never needs a redirect URI.
+SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID", "")
+SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET", "")
+SPOTIFY_REFRESH_TOKEN = os.environ.get("SPOTIFY_REFRESH_TOKEN", "")
+# Must match the dashboard registration byte-for-byte. Spotify prohibits
+# "localhost" — loopback has to be an explicit IP literal.
+SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback")
 
 # CSRF trust for the production HTTPS domain(s) — required for admin/comment POSTs.
 # Comma-separated full origins, e.g. "https://anotiontoponder.com,https://www.anotiontoponder.com".
