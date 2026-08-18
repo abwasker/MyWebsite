@@ -6,7 +6,9 @@ collection works (scope Phase 3a).
 """
 
 from django.contrib import admin
+from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.timesince import timesince
 
 from .models import ListeningItem, PlayEvent, SpotifyAuth
 
@@ -118,9 +120,9 @@ class PlayEventAdmin(admin.ModelAdmin):
 class SpotifyAuthAdmin(admin.ModelAdmin):
     """Token state, existing mainly to make the silent 6-month expiry visible."""
 
-    list_display = ("__str__", "reauth_status", "last_sync_at", "last_sync_status")
+    list_display = ("__str__", "reauth_status", "collection_status", "last_sync_at", "last_sync_status")
     readonly_fields = (
-        "reauth_status", "authorized_at", "refresh_token_expires_at",
+        "reauth_status", "collection_status", "authorized_at", "refresh_token_expires_at",
         "refresh_token_fingerprint", "scopes", "access_token_expires_at",
         "last_sync_at", "last_sync_status", "updated_at",
     )
@@ -146,8 +148,58 @@ class SpotifyAuthAdmin(admin.ModelAdmin):
             return format_html('<b style="color:#b00">EXPIRED {} days ago</b> — collection has stopped; re-run manage.py spotify_authorize', abs(days))
         if days < 21:
             return format_html('<b style="color:#b36b00">Expires in {} days</b> — re-authorize soon', days)
-        return format_html('OK — expires in {} days ({:%Y-%m-%d})', days, obj.refresh_token_expires_at)
+        # The date is formatted BEFORE it reaches format_html: format_html escapes
+        # each argument first, so a datetime arrives as a string and a
+        # "{:%Y-%m-%d}" spec then raises ValueError. That crash sat on the healthy
+        # branch — the one taken for ~160 of the token's 180 days.
+        return format_html(
+            "OK — expires in {} days ({})",
+            days,
+            f"{obj.refresh_token_expires_at:%Y-%m-%d}",
+        )
 
     @admin.display(description="Refresh token expires")
     def refresh_token_expires_at(self, obj):
         return obj.refresh_token_expires_at or "—"
+
+    @admin.display(description="Collection")
+    def collection_status(self, obj):
+        """The second safeguard: is data still arriving, from any cause?
+
+        The re-auth countdown above only catches one way this dies. This catches
+        the rest — a stopped timer, a crashed unit, a server that never came back
+        up — by reporting when the collector last ran at all.
+
+        Deliberately reports two separate facts rather than one alarm. "No new
+        events" is ambiguous on its own: it is equally consistent with a broken
+        collector and with simply not having listened to anything. Only the
+        collector's own silence is evidence of a fault.
+        """
+        if not obj.last_sync_at:
+            return format_html(
+                '<b style="color:#b36b00">Never run</b> — nothing has been collected yet'
+            )
+
+        since_run = timezone.now() - obj.last_sync_at
+        ran_ago = timesince(obj.last_sync_at)
+
+        latest_event = PlayEvent.objects.order_by("-played_at").values_list(
+            "played_at", flat=True
+        ).first()
+        heard = (
+            f"newest observation {timesince(latest_event)} ago"
+            if latest_event else "no observations recorded yet"
+        )
+
+        hours = since_run.total_seconds() / 3600
+        if hours >= 24:
+            return format_html(
+                '<b style="color:#b00">Collector last ran {} ago</b> — the timer is '
+                'not running. ({})', ran_ago, heard,
+            )
+        if hours >= 6:
+            return format_html(
+                '<b style="color:#b36b00">Collector last ran {} ago</b> — check the '
+                'timer. ({})', ran_ago, heard,
+            )
+        return format_html("Ran {} ago; {}", ran_ago, heard)

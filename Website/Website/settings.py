@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -32,17 +33,38 @@ def env_bool(name, default=False):
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# Read from the environment in production; the insecure literal is a LOCAL-ONLY
-# fallback so dev works with no config. Production MUST set SECRET_KEY.
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY",
-    "django-insecure-*^60)mnxs*pik%4jx1i(1f2$hizts1s*p#8318)&yhy14g8ab8",
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 # Defaults to False (secure by default). Local dev opts in via DJANGO_DEBUG=True in .env.
+# Read BEFORE the secret key, because it decides whether a missing key is fatal.
 DEBUG = env_bool("DJANGO_DEBUG", False)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+#
+# The literal below is published — this repo is public, and it additionally sits
+# in git history from before the settings were env-driven. That is acceptable
+# ONLY because it never signs anything outside local development.
+#
+# Django signs session cookies and password-reset tokens with this key, so a
+# production process falling back to a published value would let anyone forge an
+# admin session without touching a password. The guard below makes that
+# impossible rather than merely unlikely: with DEBUG off and no SECRET_KEY in the
+# environment, the process refuses to start instead of silently running insecure.
+# Failing loudly at boot is the whole point — the previous arrangement failed
+# OPEN, and a deploy that dropped the variable would have looked perfectly normal.
+DEV_ONLY_SECRET_KEY = "django-insecure-*^60)mnxs*pik%4jx1i(1f2$hizts1s*p#8318)&yhy14g8ab8"
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured(
+            "SECRET_KEY is not set. Refusing to start with the development key, "
+            "which is published in this repo's public history — using it would "
+            "make every session cookie and password-reset token forgeable.\n"
+            "Set SECRET_KEY in /etc/anotiontoponder.env (generate one with: "
+            "python -c \"from django.core.management.utils import "
+            "get_random_secret_key; print(get_random_secret_key())\")."
+        )
+    SECRET_KEY = DEV_ONLY_SECRET_KEY
 
 # Hosts/domains this site is allowed to serve. Required once DEBUG is False.
 # Comma-separated in DJANGO_ALLOWED_HOSTS; in local dev (DEBUG on) fall back to localhost.
