@@ -32,6 +32,10 @@ urlpatterns = [
     path("accounts/signup/", blog_views.signup_view, name="signup"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("blog/", include("blog.urls")), # http://localhost:8000/blog/posts/my
+    # Staff-only listening tracker. Deliberately absent from the nav and from any
+    # sitemap (Spotify Listening Tracker scope §4.3) — unlisted is not security,
+    # the is_staff gate is, but there's no reason to advertise it either.
+    path("listening/", include("listening.urls")),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,308 @@
+/* Listening table (Phase 3b).
+ *
+ * Everything is scoped under #listening-page and uses the CSS custom properties
+ * declared in app.css (--panel, --border, --muted, --olive-*, --moss), so this
+ * page follows the site's rustic palette and its light/dark toggle without
+ * restating any colour. Note that .card and .eyebrow are defined per-page in
+ * this codebase rather than globally, hence the local copies.
+ */
+
+#listening-page {
+  display: grid;
+  gap: 1rem;
+  background: transparent;
+}
+
+#listening-page .card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.4rem;
+  box-shadow: 0 10px 26px var(--card-shadow);
+}
+
+#listening-page .eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+#listening-page h2 {
+  margin: 0.3rem 0 0.2rem;
+  font-size: clamp(1.9rem, 4.5vw, 2.6rem);
+}
+
+.listening-intro {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+/* --- controls ---------------------------------------------------------- */
+
+.listening-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.listening-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.listening-controls input[type="search"],
+.listening-controls select {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  min-width: 11rem;
+}
+
+.listening-controls input[type="search"]:focus-visible,
+.listening-controls select:focus-visible {
+  outline: 2px solid var(--olive-500);
+  outline-offset: 1px;
+}
+
+.listening-apply,
+.listening-clear {
+  font: inherit;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.listening-apply {
+  background: var(--olive-700);
+  color: #f7f4ea;
+}
+
+.listening-apply:hover {
+  background: var(--olive-500);
+}
+
+.listening-clear {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.listening-count {
+  margin: 0.9rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Downloads sit inside the filter form (they are submit buttons retargeted with
+ * formaction), so they read as part of the same control group. */
+.listening-downloads {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.listening-downloads .listening-label {
+  margin-bottom: 0;
+}
+
+.listening-download-button {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--olive-700);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.listening-download-button:hover {
+  background: var(--panel-soft);
+  border-color: color-mix(in srgb, var(--olive-500) 55%, var(--border));
+}
+
+.listening-download-button:focus-visible {
+  outline: 2px solid var(--olive-500);
+  outline-offset: 1px;
+}
+
+/* --- table ------------------------------------------------------------- */
+
+/* The table can outgrow a narrow viewport; let it scroll inside its own card
+ * rather than making the whole page scroll sideways. */
+.listening-table-wrap {
+  overflow-x: auto;
+}
+
+.listening-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.listening-table th,
+.listening-table td {
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.listening-table thead th {
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.listening-table thead th a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.listening-table thead th a:hover {
+  color: var(--olive-700);
+  text-decoration: underline;
+}
+
+.listening-table th.listening-sorted {
+  color: var(--olive-700);
+}
+
+.listening-caret {
+  margin-left: 0.25rem;
+}
+
+.listening-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.listening-table tbody tr:hover {
+  background: var(--panel-soft);
+}
+
+.listening-name {
+  font-weight: 600;
+  max-width: 26rem;
+}
+
+.listening-name a {
+  text-decoration: none;
+}
+
+.listening-name a:hover {
+  text-decoration: underline;
+}
+
+.listening-when {
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.listening-num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.listening-chip {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--moss) 54%, var(--border));
+  background: color-mix(in srgb, var(--moss) 22%, var(--panel-soft));
+}
+
+.listening-chip-episode {
+  border-color: color-mix(in srgb, var(--olive-500) 60%, var(--border));
+  background: color-mix(in srgb, var(--olive-500) 20%, var(--panel-soft));
+}
+
+.listening-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.listening-empty code {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+}
+
+/* --- footnotes + pagination -------------------------------------------- */
+
+.listening-notes {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0 0.4rem;
+}
+
+.listening-notes p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.listening-pagination {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0 0.6rem;
+  font-size: 0.9rem;
+}
+
+.listening-pagination a {
+  color: var(--olive-700);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.listening-pagination a:hover {
+  text-decoration: underline;
+}
+
+.listening-page-disabled {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.listening-page-current {
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .listening-controls input[type="search"],
+  .listening-controls select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .listening-search,
+  .listening-type {
+    flex: 1 1 100%;
+  }
+}

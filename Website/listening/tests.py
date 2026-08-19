@@ -14,14 +14,27 @@ arriving seconds after the first. Each would silently corrupt the timestamps
 that are this app's entire deliverable.
 """
 
+import csv
 import json
+import tempfile
+from io import StringIO
+from pathlib import Path
 from unittest import mock
 
+from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
-from listening import spotify, sync
-from listening.models import ListeningItem, PlayEvent, SpotifyAuth
+from listening import spotify, stats, sync
+from listening.models import (
+    REFRESH_TOKEN_LIFETIME_DAYS,
+    ListeningItem,
+    PlayEvent,
+    SpotifyAuth,
+)
 
 EPISODE_ID = "2B5rKwS9q5bfA1Exu9yprp"
 SHOW_ID = "3iiyQHm9r6ZuL5N0N1nB3S"
@@ -321,7 +334,22 @@ class SyncTests(TestCase):
 
         auth.refresh_from_db()
         self.assertIsNotNone(auth.authorized_at)
-        self.assertEqual(auth.days_until_reauth, 179)
+
+        # The stored data is deterministic, so assert on that precisely.
+        self.assertEqual(
+            auth.refresh_token_expires_at,
+            auth.authorized_at + timezone.timedelta(days=REFRESH_TOKEN_LIFETIME_DAYS),
+        )
+
+        # days_until_reauth is not deterministic: it measures authorized_at
+        # against a SECOND, later call to timezone.now(), so the true remaining
+        # life is "180 days minus an infinitesimal" and .days truncates to 179 or
+        # 180 depending on whether the clock ticked in between. This test used to
+        # assert 179 exactly and therefore failed or passed on timing alone.
+        self.assertIn(
+            auth.days_until_reauth,
+            (REFRESH_TOKEN_LIFETIME_DAYS - 1, REFRESH_TOKEN_LIFETIME_DAYS),
+        )
 
     def test_cached_access_token_is_reused(self):
         self.currently_playing = episode_poll()
@@ -410,3 +438,699 @@ class AdminStatusTests(TestCase):
             source=PlayEvent.Source.CURRENTLY_PLAYING,
         )
         self.assertIn("newest observation", admin_instance.collection_status(auth))
+
+
+class SessionGroupingTests(TestCase):
+    """The sessions-not-observations rule (scope §4).
+
+    This is the correction that makes the table readable: a 3-hour podcast
+    polled every 5 minutes produces ~36 events and exactly one listen. There is
+    no multi-observation item in the real dev database yet — the Phase 4 soak is
+    what produces one — so these build the event spacing synthetically.
+    """
+
+    def _episode(self, spotify_id=EPISODE_ID):
+        return ListeningItem.objects.create(
+            spotify_id=spotify_id,
+            item_type=ListeningItem.ItemType.EPISODE,
+            name="Evolution on Trial",
+            creator_name="Whaddo You Meme??",
+            duration_ms=10413062,
+        )
+
+    def _observe(self, item, base, *offsets_minutes):
+        for offset in offsets_minutes:
+            PlayEvent.objects.create(
+                item=item,
+                played_at=base + timezone.timedelta(minutes=offset),
+                source=PlayEvent.Source.CURRENTLY_PLAYING,
+            )
+
+    def test_one_long_listen_counts_as_a_single_session(self):
+        item = self._episode()
+        base = timezone.now() - timezone.timedelta(hours=4)
+        # 36 polls, 5 minutes apart — a single three-hour sitting.
+        self._observe(item, base, *range(0, 180, 5))
+
+        item.recalculate_rollups()
+        self.assertEqual(item.observation_count, 36)
+        self.assertEqual(stats.session_counts([item.pk])[item.pk], 1)
+
+    def test_a_gap_longer_than_the_threshold_starts_a_new_session(self):
+        item = self._episode()
+        base = timezone.now() - timezone.timedelta(hours=6)
+        # Two sittings an hour apart.
+        self._observe(item, base, 0, 5, 10, 70, 75)
+
+        self.assertEqual(stats.session_counts([item.pk])[item.pk], 2)
+
+    def test_jitter_below_the_threshold_does_not_split_a_session(self):
+        item = self._episode()
+        base = timezone.now() - timezone.timedelta(hours=2)
+        # A missed poll or two: 11 minutes is still inside the 15-minute gap.
+        self._observe(item, base, 0, 5, 16, 27)
+
+        self.assertEqual(stats.session_counts([item.pk])[item.pk], 1)
+
+    def test_sessions_are_counted_per_item_not_across_them(self):
+        first = self._episode()
+        second = self._episode(spotify_id="second-episode-id")
+        base = timezone.now() - timezone.timedelta(hours=3)
+        self._observe(first, base, 0, 5)
+        self._observe(second, base, 1, 6)
+
+        counts = stats.session_counts([first.pk, second.pk])
+        self.assertEqual(counts[first.pk], 1)
+        self.assertEqual(counts[second.pk], 1)
+
+    def test_item_with_no_events_is_absent_rather_than_zero(self):
+        item = self._episode()
+        self.assertEqual(stats.session_counts([item.pk]), {})
+
+    def test_no_items_makes_no_query(self):
+        with self.assertNumQueries(0):
+            self.assertEqual(stats.session_counts([]), {})
+
+    def test_gap_threshold_is_configurable(self):
+        item = self._episode()
+        base = timezone.now() - timezone.timedelta(hours=5)
+        # A 30-minute break: longer than the 15-minute default, shorter than a
+        # 60-minute override. The same events must therefore count differently.
+        self._observe(item, base, 0, 5, 35, 40)
+
+        self.assertEqual(stats.session_counts([item.pk])[item.pk], 2)
+
+        with override_settings(LISTENING_SESSION_GAP_MINUTES=60):
+            self.assertEqual(stats.session_counts([item.pk])[item.pk], 1)
+
+
+class EstimatedTimeTests(TestCase):
+    """The SQL annotation must agree with the model property.
+
+    They are two expressions of the same rule — one for sorting in the database,
+    one for display — and a drift between them would show one number in the
+    column and sort by another.
+    """
+
+    def test_annotation_matches_the_model_property(self):
+        episode = ListeningItem.objects.create(
+            spotify_id=EPISODE_ID,
+            item_type=ListeningItem.ItemType.EPISODE,
+            name="Episode",
+            duration_ms=10413062,
+            max_progress_ms=5193353,
+        )
+        track = ListeningItem.objects.create(
+            spotify_id=TRACK_ID,
+            item_type=ListeningItem.ItemType.TRACK,
+            name="Track",
+            duration_ms=207081,
+            observation_count=3,
+        )
+        no_duration = ListeningItem.objects.create(
+            spotify_id="no-duration-id",
+            item_type=ListeningItem.ItemType.TRACK,
+            name="Unknown length",
+            observation_count=2,
+        )
+
+        annotated = {
+            row.pk: row.est_ms
+            for row in ListeningItem.objects.annotate(est_ms=stats.ESTIMATED_MS)
+        }
+
+        self.assertEqual(annotated[episode.pk], episode.estimated_listened_ms)
+        self.assertEqual(annotated[track.pk], track.estimated_listened_ms)
+        self.assertEqual(annotated[episode.pk], 5193353)
+        self.assertEqual(annotated[track.pk], 207081 * 3)
+        # A missing duration must not become 0 — that would read as "listened to
+        # for no time" rather than "unknown".
+        self.assertIsNone(annotated[no_duration.pk])
+        self.assertIsNone(no_duration.estimated_listened_ms)
+
+    def test_humanize_ms_is_coarse_and_safe(self):
+        self.assertEqual(stats.humanize_ms(5193353), "1h 26m")
+        self.assertEqual(stats.humanize_ms(207081), "3m")
+        self.assertEqual(stats.humanize_ms(38000), "38s")
+        # No duration must render as empty so the template can show a dash.
+        self.assertEqual(stats.humanize_ms(None), "")
+        self.assertEqual(stats.humanize_ms(0), "")
+        self.assertEqual(stats.humanize_ms(-5), "")
+
+
+class ListeningPageAccessTests(TestCase):
+    """Access control on /listening/ (scope §4.3).
+
+    The case that matters is the authenticated NON-STAFF user: the parent project
+    plans 3-5 blog authors, and with a bare @login_required their accounts would
+    silently gain access to personal listening data. That failure has no symptom
+    — nothing errors, nothing logs — so it only ever shows up in a test.
+    """
+
+    def setUp(self):
+        self.url = reverse("listening-home")
+
+    def test_anonymous_visitor_is_redirected_to_login(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_authenticated_non_staff_user_is_forbidden(self):
+        User.objects.create_user(username="blogauthor", password="pw-for-test-only")
+        self.client.login(username="blogauthor", password="pw-for-test-only")
+
+        response = self.client.get(self.url)
+        # 403, not a redirect: they ARE logged in, so bouncing them to a login
+        # form would be a dead end.
+        self.assertEqual(response.status_code, 403)
+
+    def test_staff_user_gets_the_page(self):
+        User.objects.create_user(username="owner", password="pw-for-test-only", is_staff=True)
+        self.client.login(username="owner", password="pw-for-test-only")
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "listening/listening_home.html")
+
+    def test_page_is_not_advertised_in_the_navigation(self):
+        User.objects.create_user(username="owner", password="pw-for-test-only", is_staff=True)
+        self.client.login(username="owner", password="pw-for-test-only")
+
+        response = self.client.get(reverse("home"))
+        self.assertNotContains(response, 'href="/listening/"')
+
+
+class ListeningPageContentTests(TestCase):
+    """Rendering, filtering, sorting and pagination of the table."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="owner", password="pw-for-test-only", is_staff=True
+        )
+        base = timezone.now() - timezone.timedelta(days=1)
+
+        cls.episode = ListeningItem.objects.create(
+            spotify_id=EPISODE_ID,
+            item_type=ListeningItem.ItemType.EPISODE,
+            name="Evolution on Trial",
+            creator_name="Whaddo You Meme??",
+            duration_ms=10413062,
+            spotify_url="https://open.spotify.com/episode/x",
+        )
+        cls.track = ListeningItem.objects.create(
+            spotify_id=TRACK_ID,
+            item_type=ListeningItem.ItemType.TRACK,
+            name="The Celestial Flute",
+            creator_name="Niko Thalen",
+            duration_ms=207081,
+        )
+
+        # The episode gets two sittings; the track a single play.
+        for offset in (0, 5, 10, 90, 95):
+            PlayEvent.objects.create(
+                item=cls.episode,
+                played_at=base + timezone.timedelta(minutes=offset),
+                source=PlayEvent.Source.CURRENTLY_PLAYING,
+                progress_ms=5193353,
+            )
+        PlayEvent.objects.create(
+            item=cls.track,
+            played_at=base + timezone.timedelta(minutes=30),
+            source=PlayEvent.Source.RECENTLY_PLAYED,
+        )
+        cls.episode.recalculate_rollups()
+        cls.track.recalculate_rollups()
+
+    def setUp(self):
+        self.client.login(username="owner", password="pw-for-test-only")
+        self.url = reverse("listening-home")
+
+    def test_table_shows_sessions_rather_than_observation_count(self):
+        response = self.client.get(self.url)
+        rows = {row["item"].pk: row for row in response.context["rows"]}
+
+        self.episode.refresh_from_db()
+        self.assertEqual(self.episode.observation_count, 5)
+        # Five observations, two sittings.
+        self.assertEqual(rows[self.episode.pk]["sessions"], 2)
+        self.assertEqual(rows[self.track.pk]["sessions"], 1)
+
+    def test_estimated_time_is_rendered_with_a_tilde(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "~1h 26m")
+
+    def test_type_filter_narrows_to_one_kind(self):
+        response = self.client.get(self.url, {"type": "episode"})
+        names = [row["item"].name for row in response.context["rows"]]
+        self.assertEqual(names, ["Evolution on Trial"])
+
+        response = self.client.get(self.url, {"type": "track"})
+        names = [row["item"].name for row in response.context["rows"]]
+        self.assertEqual(names, ["The Celestial Flute"])
+
+    def test_search_matches_name_or_creator(self):
+        response = self.client.get(self.url, {"q": "celestial"})
+        self.assertEqual(len(response.context["rows"]), 1)
+
+        response = self.client.get(self.url, {"q": "Whaddo"})
+        self.assertEqual(len(response.context["rows"]), 1)
+
+        response = self.client.get(self.url, {"q": "nothing here"})
+        self.assertEqual(len(response.context["rows"]), 0)
+        self.assertContains(response, "Nothing matches that filter")
+
+    def test_sort_by_name_ascending(self):
+        response = self.client.get(self.url, {"sort": "name", "dir": "asc"})
+        names = [row["item"].name for row in response.context["rows"]]
+        self.assertEqual(names, sorted(names))
+
+    def test_sort_by_sessions_orders_by_the_computed_value(self):
+        response = self.client.get(self.url, {"sort": "sessions", "dir": "desc"})
+        sessions = [row["sessions"] for row in response.context["rows"]]
+        self.assertEqual(sessions, [2, 1])
+
+        response = self.client.get(self.url, {"sort": "sessions", "dir": "asc"})
+        sessions = [row["sessions"] for row in response.context["rows"]]
+        self.assertEqual(sessions, [1, 2])
+
+    def test_unknown_sort_key_falls_back_instead_of_reaching_the_orm(self):
+        # A crafted sort key must not become an order_by() argument.
+        response = self.client.get(self.url, {"sort": "item__play_events__id"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["sort"], "last")
+
+    def test_unknown_type_filter_falls_back_to_all(self):
+        response = self.client.get(self.url, {"type": "../etc/passwd"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["item_type"], "all")
+        self.assertEqual(len(response.context["rows"]), 2)
+
+    def test_pagination_preserves_the_active_filter(self):
+        response = self.client.get(self.url, {"type": "episode", "q": "Evolution"})
+        preserved = response.context["preserved_query"]
+        self.assertIn("type=episode", preserved)
+        self.assertIn("q=Evolution", preserved)
+        self.assertNotIn("page=", preserved)
+
+    def test_empty_database_renders_a_hint_rather_than_an_empty_table(self):
+        ListeningItem.objects.all().delete()
+        response = self.client.get(self.url)
+        self.assertContains(response, "No listening collected yet")
+
+
+class ExportListeningTests(TestCase):
+    """The export command (Phase 3c).
+
+    Two of these pin down bugs that real data actually caused rather than
+    hypotheticals: a podcast title containing a literal ``|`` (which silently
+    shifts every Markdown column after it), and non-ASCII creator names (which
+    killed stdout on a cp1252 Windows console).
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        base = timezone.now() - timezone.timedelta(days=1)
+
+        cls.episode = ListeningItem.objects.create(
+            spotify_id=EPISODE_ID,
+            item_type=ListeningItem.ItemType.EPISODE,
+            # The real title of the first episode collected.
+            name="Evolution on Trial | @MadebyJimbob Vs @PolymathWorld",
+            creator_name="Modern-Day Debate",
+            duration_ms=10413062,
+        )
+        cls.track = ListeningItem.objects.create(
+            spotify_id=TRACK_ID,
+            item_type=ListeningItem.ItemType.TRACK,
+            # Cyrillic С, an accent, and a ć — all present in the real library
+            # and all outside cp1252's range for the last one.
+            name="Сomfort",
+            creator_name="Dalibor Bukvić, Wilson Trouvé",
+            duration_ms=484417,
+        )
+
+        for offset in (0, 5, 10, 90):
+            PlayEvent.objects.create(
+                item=cls.episode,
+                played_at=base + timezone.timedelta(minutes=offset),
+                source=PlayEvent.Source.CURRENTLY_PLAYING,
+                progress_ms=5193353,
+            )
+        PlayEvent.objects.create(
+            item=cls.track,
+            played_at=base + timezone.timedelta(minutes=30),
+            source=PlayEvent.Source.RECENTLY_PLAYED,
+        )
+        cls.episode.recalculate_rollups()
+        cls.track.recalculate_rollups()
+
+    def export(self, **options):
+        out = StringIO()
+        err = StringIO()
+        call_command("export_listening", stdout=out, stderr=err, **options)
+        return out.getvalue(), err.getvalue()
+
+    def test_csv_has_the_expected_header(self):
+        output, _ = self.export()
+        first_line = output.splitlines()[0]
+        self.assertEqual(
+            first_line,
+            "name,creator,type,first_listened,last_listened,listens,estimated_ms,estimated",
+        )
+
+    def test_csv_carries_every_item(self):
+        output, _ = self.export()
+        rows = list(csv.DictReader(StringIO(output)))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual({row["name"] for row in rows}, {self.episode.name, self.track.name})
+
+    def test_csv_preserves_non_ascii(self):
+        output, _ = self.export()
+        self.assertIn("Сomfort", output)
+        self.assertIn("Bukvić", output)
+        self.assertIn("Trouvé", output)
+
+    def test_csv_quotes_a_creator_containing_commas(self):
+        output, _ = self.export()
+        rows = {row["name"]: row for row in csv.DictReader(StringIO(output))}
+        # Round-tripping through the csv reader is the real assertion: if the
+        # commas weren't quoted, the columns would have shifted.
+        self.assertEqual(rows["Сomfort"]["creator"], "Dalibor Bukvić, Wilson Trouvé")
+
+    def test_csv_timestamps_are_iso_with_an_offset(self):
+        output, _ = self.export()
+        rows = {row["name"]: row for row in csv.DictReader(StringIO(output))}
+        stamp = rows["Сomfort"]["last_listened"]
+        self.assertIn("T", stamp)
+        # Offset present in some form, so the value is never ambiguous.
+        self.assertTrue(stamp.endswith("+00:00") or "-" in stamp[10:] or "+" in stamp[10:])
+
+    def test_csv_carries_both_raw_and_human_durations(self):
+        output, _ = self.export()
+        rows = {row["name"]: row for row in csv.DictReader(StringIO(output))}
+        self.assertEqual(rows[self.episode.name]["estimated_ms"], "5193353")
+        self.assertEqual(rows[self.episode.name]["estimated"], "1h 26m")
+
+    def test_markdown_escapes_a_pipe_in_a_title(self):
+        output, _ = self.export(format="markdown")
+        self.assertIn("Evolution on Trial \\| @MadebyJimbob", output)
+        # Every row must have the same number of cell separators as the header,
+        # which is exactly what an unescaped pipe would break.
+        table_lines = [line for line in output.splitlines() if line.startswith("| ")]
+        widths = {line.count(" | ") for line in table_lines}
+        self.assertEqual(len(widths), 1, f"ragged markdown table: {widths}")
+
+    def test_markdown_marks_estimates_with_a_tilde(self):
+        output, _ = self.export(format="markdown")
+        self.assertIn("~1h 26m", output)
+
+    def test_markdown_carries_the_same_caveats_as_the_page(self):
+        output, _ = self.export(format="markdown")
+        self.assertIn("estimate, not a measurement", output)
+        self.assertIn("sessions, not polls", output)
+        self.assertIn("15", output)  # the configured session gap
+
+    def test_export_sessions_agree_with_the_page(self):
+        """The export must not quietly disagree with what the screen shows."""
+        user = User.objects.create_user(
+            username="owner", password="pw-for-test-only", is_staff=True
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("listening-home"))
+        page_sessions = {row["item"].name: row["sessions"] for row in response.context["rows"]}
+
+        output, _ = self.export()
+        csv_sessions = {
+            row["name"]: int(row["listens"]) for row in csv.DictReader(StringIO(output))
+        }
+
+        self.assertEqual(page_sessions, csv_sessions)
+        # And the value is the session count, not the observation count.
+        self.episode.refresh_from_db()
+        self.assertEqual(self.episode.observation_count, 4)
+        self.assertEqual(csv_sessions[self.episode.name], 2)
+
+    def test_type_filter_limits_the_export(self):
+        output, _ = self.export(type="episode")
+        rows = list(csv.DictReader(StringIO(output)))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["type"], "Podcast episode")
+
+    def test_empty_result_warns_instead_of_failing(self):
+        ListeningItem.objects.all().delete()
+        output, errors = self.export()
+        self.assertEqual(output, "")
+        self.assertIn("nothing exported", errors.lower())
+
+    def test_csv_file_gets_a_bom_and_markdown_does_not(self):
+        with tempfile.TemporaryDirectory() as folder:
+            csv_path = Path(folder) / "listening.csv"
+            md_path = Path(folder) / "listening.md"
+
+            self.export(output=str(csv_path))
+            self.export(format="markdown", output=str(md_path))
+
+            # The BOM is what makes Excel read the accents rather than mojibake.
+            self.assertTrue(csv_path.read_bytes().startswith(b"\xef\xbb\xbf"))
+            self.assertFalse(md_path.read_bytes().startswith(b"\xef\xbb\xbf"))
+
+            # Both must be decodable as UTF-8 with the non-ASCII intact.
+            self.assertIn("Bukvić", csv_path.read_text(encoding="utf-8-sig"))
+            self.assertIn("Bukvić", md_path.read_text(encoding="utf-8"))
+
+    def test_written_file_reports_what_it_wrote(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "out.csv"
+            output, _ = self.export(output=str(path))
+            self.assertIn("Wrote 2 item(s)", output)
+
+    def test_unwritable_destination_is_a_command_error(self):
+        # A directory path can't be opened for writing as a file.
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaises(CommandError):
+                self.export(output=folder)
+
+
+class ListeningDownloadTests(TestCase):
+    """The download buttons (Phase 3d).
+
+    The download is a second door to the same private data, so the access tests
+    here matter as much as the ones on the page: gating the page while leaving
+    the export URL open is a textbook way to leak.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        base = timezone.now() - timezone.timedelta(days=1)
+
+        cls.episode = ListeningItem.objects.create(
+            spotify_id=EPISODE_ID,
+            item_type=ListeningItem.ItemType.EPISODE,
+            name="Evolution on Trial | @MadebyJimbob Vs @PolymathWorld",
+            creator_name="Modern-Day Debate",
+            duration_ms=10413062,
+        )
+        cls.track = ListeningItem.objects.create(
+            spotify_id=TRACK_ID,
+            item_type=ListeningItem.ItemType.TRACK,
+            name="Сomfort",
+            creator_name="Dalibor Bukvić",
+            duration_ms=484417,
+        )
+
+        for offset in (0, 5, 90):
+            PlayEvent.objects.create(
+                item=cls.episode,
+                played_at=base + timezone.timedelta(minutes=offset),
+                source=PlayEvent.Source.CURRENTLY_PLAYING,
+                progress_ms=5193353,
+            )
+        PlayEvent.objects.create(
+            item=cls.track,
+            played_at=base + timezone.timedelta(minutes=30),
+            source=PlayEvent.Source.RECENTLY_PLAYED,
+        )
+        cls.episode.recalculate_rollups()
+        cls.track.recalculate_rollups()
+
+    def url(self, output_format="csv"):
+        return reverse("listening-download", args=[output_format])
+
+    def login_staff(self):
+        user = User.objects.create_user(
+            username="owner", password="pw-for-test-only", is_staff=True
+        )
+        self.client.force_login(user)
+        return user
+
+    def body(self, response):
+        return response.content.decode("utf-8-sig")
+
+    # --- access control ---------------------------------------------------
+
+    def test_anonymous_visitor_cannot_download(self):
+        response = self.client.get(self.url())
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_authenticated_non_staff_user_cannot_download(self):
+        User.objects.create_user(username="blogauthor", password="pw-for-test-only")
+        self.client.login(username="blogauthor", password="pw-for-test-only")
+
+        for output_format in ("csv", "markdown"):
+            response = self.client.get(self.url(output_format))
+            self.assertEqual(
+                response.status_code, 403,
+                f"{output_format} download was not refused for a non-staff user",
+            )
+
+    def test_unknown_format_is_a_404(self):
+        self.login_staff()
+        response = self.client.get(self.url("xlsx"))
+        self.assertEqual(response.status_code, 404)
+
+    # --- response shape ---------------------------------------------------
+
+    def test_csv_download_headers(self):
+        self.login_staff()
+        response = self.client.get(self.url("csv"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("attachment;", response["Content-Disposition"])
+        stamp = timezone.localtime(timezone.now()).strftime("%Y-%m-%d")
+        self.assertIn(f'filename="listening-{stamp}.csv"', response["Content-Disposition"])
+
+    def test_markdown_download_headers(self):
+        self.login_staff()
+        response = self.client.get(self.url("markdown"))
+
+        self.assertEqual(response["Content-Type"], "text/markdown; charset=utf-8")
+        stamp = timezone.localtime(timezone.now()).strftime("%Y-%m-%d")
+        self.assertIn(f'filename="listening-{stamp}.md"', response["Content-Disposition"])
+
+    def test_csv_download_starts_with_a_bom(self):
+        self.login_staff()
+        response = self.client.get(self.url("csv"))
+        # Without it, Excel reads the accented names in the local codepage.
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+
+    def test_markdown_download_has_no_bom(self):
+        self.login_staff()
+        response = self.client.get(self.url("markdown"))
+        self.assertFalse(response.content.startswith(b"\xef\xbb\xbf"))
+
+    def test_download_preserves_non_ascii(self):
+        self.login_staff()
+        response = self.client.get(self.url("csv"))
+        self.assertIn("Bukvić", self.body(response))
+        self.assertIn("Сomfort", self.body(response))
+
+    # --- THE point of this phase: the download follows the filter ---------
+
+    def test_type_filter_is_honoured(self):
+        self.login_staff()
+
+        response = self.client.get(self.url("csv"), {"type": "episode"})
+        rows = list(csv.DictReader(StringIO(self.body(response))))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["type"], "Podcast episode")
+
+        response = self.client.get(self.url("csv"), {"type": "track"})
+        rows = list(csv.DictReader(StringIO(self.body(response))))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["name"], "Сomfort")
+
+    def test_search_filter_is_honoured(self):
+        self.login_staff()
+        response = self.client.get(self.url("csv"), {"q": "Bukvić"})
+        rows = list(csv.DictReader(StringIO(self.body(response))))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["creator"], "Dalibor Bukvić")
+
+    def test_filename_names_the_active_filter(self):
+        self.login_staff()
+        response = self.client.get(self.url("csv"), {"type": "episode"})
+        self.assertIn("listening-episode-", response["Content-Disposition"])
+
+    def test_unfiltered_download_contains_everything(self):
+        self.login_staff()
+        response = self.client.get(self.url("csv"))
+        rows = list(csv.DictReader(StringIO(self.body(response))))
+        self.assertEqual(len(rows), 2)
+
+    def test_bogus_filter_values_fall_back_rather_than_erroring(self):
+        self.login_staff()
+        response = self.client.get(self.url("csv"), {"type": "../../etc/passwd"})
+        self.assertEqual(response.status_code, 200)
+        rows = list(csv.DictReader(StringIO(self.body(response))))
+        self.assertEqual(len(rows), 2)
+
+    def test_download_matches_the_filtered_page_exactly(self):
+        """The whole promise of the feature, asserted end to end."""
+        self.login_staff()
+
+        page = self.client.get(reverse("listening-home"), {"type": "episode"})
+        page_names = [row["item"].name for row in page.context["rows"]]
+        page_sessions = {row["item"].name: row["sessions"] for row in page.context["rows"]}
+
+        download = self.client.get(self.url("csv"), {"type": "episode"})
+        rows = list(csv.DictReader(StringIO(self.body(download))))
+
+        self.assertEqual([row["name"] for row in rows], page_names)
+        self.assertEqual({row["name"]: int(row["listens"]) for row in rows}, page_sessions)
+        # And sessions, not observations: three polls across two sittings.
+        self.episode.refresh_from_db()
+        self.assertEqual(self.episode.observation_count, 3)
+        self.assertEqual(int(rows[0]["listens"]), 2)
+
+    # --- the links on the page --------------------------------------------
+
+    def test_download_buttons_submit_the_filter_form(self):
+        """The buttons must live INSIDE the filter form, retargeted by formaction.
+
+        This is the fix for a real bug: the downloads used to be server-rendered
+        links carrying the *last submitted* query string, so choosing "Podcasts"
+        in the dropdown and clicking CSV without first pressing Apply downloaded
+        the entire library. As submit buttons of the form itself they send
+        whatever the controls currently hold, so the file always matches the
+        controls — submitted or not.
+        """
+        self.login_staff()
+        response = self.client.get(reverse("listening-home"))
+        html = response.content.decode()
+
+        form_start = html.index('<form class="listening-controls"')
+        form_end = html.index("</form>", form_start)
+        form_html = html[form_start:form_end]
+
+        # Both buttons are inside the form...
+        self.assertIn(f'formaction="{reverse("listening-download", args=["csv"])}"', form_html)
+        self.assertIn(f'formaction="{reverse("listening-download", args=["markdown"])}"', form_html)
+        # ...and are submit buttons, not anchors, so the form's values are sent.
+        self.assertNotIn('<a href="/listening/download/', html)
+
+        # The form is a GET form, so the controls arrive as query parameters.
+        self.assertIn('method="get"', html[form_start:form_end + 7])
+
+    def test_download_buttons_are_shown_even_with_no_matches(self):
+        """They belong to the controls, not to the result set.
+
+        Hiding them when the *submitted* filter matched nothing would mean the
+        buttons vanish exactly when someone is mid-way through changing the
+        filter to something that does match.
+        """
+        self.login_staff()
+        response = self.client.get(reverse("listening-home"), {"q": "definitely-no-match"})
+        self.assertContains(response, 'formaction="/listening/download/csv/"')
+
+    def test_download_of_an_empty_filter_is_a_header_only_file(self):
+        """A filter matching nothing yields an empty table, not an error."""
+        self.login_staff()
+        response = self.client.get(self.url("csv"), {"q": "definitely-no-match"})
+
+        self.assertEqual(response.status_code, 200)
+        rows = list(csv.DictReader(StringIO(self.body(response))))
+        self.assertEqual(rows, [])
+        self.assertIn("name,creator,type", self.body(response))
