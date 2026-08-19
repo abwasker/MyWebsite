@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Listening | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'listening/listening.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<main id="listening-page">
+    <section class="listening-head card">
+        <p class="eyebrow">Private</p>
+        <h2>Listening</h2>
+        <p class="listening-intro">
+            Songs and podcast episodes collected from Spotify. Visible to staff accounts only.
+        </p>
+
+        <form class="listening-controls" method="get" action="{% url 'listening-home' %}">
+            <label class="listening-search">
+                <span class="listening-label">Search</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Name or creator" />
+            </label>
+
+            <label class="listening-type">
+                <span class="listening-label">Type</span>
+                <select name="type">
+                    <option value="all" {% if item_type == 'all' %}selected{% endif %}>All</option>
+                    <option value="track" {% if item_type == 'track' %}selected{% endif %}>Songs</option>
+                    <option value="episode" {% if item_type == 'episode' %}selected{% endif %}>Podcasts</option>
+                </select>
+            </label>
+
+            {# Carry the active sort through the filter form, so filtering doesn't silently reset it. #}
+            <input type="hidden" name="sort" value="{{ sort }}" />
+            <input type="hidden" name="dir" value="{{ direction }}" />
+
+            <button type="submit" class="listening-apply">Apply</button>
+            {% if query or item_type != 'all' %}
+            <a class="listening-clear" href="{% url 'listening-home' %}">Clear</a>
+            {% endif %}
+
+            {# The downloads are submit buttons of THIS form, using formaction to
+               retarget it. That means they send whatever the controls currently
+               hold — so picking "Podcasts" and hitting CSV downloads podcasts
+               even without pressing Apply first. Server-rendered links couldn't
+               do that: they only ever reflected the last submitted request, so an
+               unsubmitted dropdown change silently downloaded everything. #}
+            <span class="listening-downloads">
+                <span class="listening-label">Download</span>
+                <button type="submit" class="listening-download-button"
+                        formaction="{% url 'listening-download' 'csv' %}">CSV</button>
+                <button type="submit" class="listening-download-button"
+                        formaction="{% url 'listening-download' 'markdown' %}">Markdown</button>
+            </span>
+        </form>
+
+        <p class="listening-count">
+            {{ total_matching }} item{{ total_matching|pluralize }}
+            {% if query or item_type != 'all' %}matching{% else %}collected{% endif %}
+        </p>
+    </section>
+
+    <section class="listening-table-wrap card">
+        {% if rows %}
+        <table class="listening-table">
+            <thead>
+                <tr>
+                    {% include "listening/includes/sort-header.html" with key="name" label="Name" %}
+                    {% include "listening/includes/sort-header.html" with key="creator" label="Creator" %}
+                    {% include "listening/includes/sort-header.html" with key="type" label="Type" %}
+                    {% include "listening/includes/sort-header.html" with key="first" label="First listened" %}
+                    {% include "listening/includes/sort-header.html" with key="last" label="Last listened" %}
+                    {% include "listening/includes/sort-header.html" with key="sessions" label="Listens" %}
+                    {% include "listening/includes/sort-header.html" with key="est" label="Est. time" %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td class="listening-name">
+                        {% if row.item.spotify_url %}
+                        <a href="{{ row.item.spotify_url }}" target="_blank" rel="noopener noreferrer">{{ row.item.name }}</a>
+                        {% else %}
+                        {{ row.item.name }}
+                        {% endif %}
+                    </td>
+                    <td>{{ row.item.creator_name|default:"—" }}</td>
+                    <td>
+                        <span class="listening-chip listening-chip-{{ row.item.item_type }}">
+                            {{ row.item.get_item_type_display }}
+                        </span>
+                    </td>
+                    <td class="listening-when">{{ row.item.first_played_at|date:"j M Y, H:i"|default:"—" }}</td>
+                    <td class="listening-when">{{ row.item.last_played_at|date:"j M Y, H:i"|default:"—" }}</td>
+                    <td class="listening-num">{{ row.sessions }}</td>
+                    <td class="listening-num">{% if row.estimated %}~{{ row.estimated }}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="listening-empty">
+            {% if query or item_type != 'all' %}
+            Nothing matches that filter.
+            {% else %}
+            No listening collected yet. Run <code>manage.py spotify_sync</code> to start.
+            {% endif %}
+        </p>
+        {% endif %}
+    </section>
+
+    <section class="listening-notes">
+        <p>
+            <strong>Est. time is an estimate, not a measurement.</strong> Spotify publishes no
+            played-duration anywhere, so podcast time is the furthest position observed in the
+            episode, and song time is play count multiplied by track length — which over-counts
+            any song that was skipped.
+        </p>
+        <p>
+            <strong>Listens are sessions, not polls.</strong> A long podcast is sampled repeatedly
+            while it plays; observations more than {{ session_gap_minutes }} minutes apart are
+            counted as separate listens.
+        </p>
+    </section>
+
+    {% if page.has_other_pages %}
+    <nav class="listening-pagination" aria-label="Pagination">
+        {% if page.has_previous %}
+        <a href="?page={{ page.previous_page_number }}{% if preserved_query %}&amp;{{ preserved_query }}{% endif %}">Previous</a>
+        {% else %}
+        <span class="listening-page-disabled">Previous</span>
+        {% endif %}
+
+        <span class="listening-page-current">Page {{ page.number }} of {{ paginator.num_pages }}</span>
+
+        {% if page.has_next %}
+        <a href="?page={{ page.next_page_number }}{% if preserved_query %}&amp;{{ preserved_query }}{% endif %}">Next</a>
+        {% else %}
+        <span class="listening-page-disabled">Next</span>
+        {% endif %}
+    </nav>
+    {% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% comment %}
+One sortable column header.
+
+Clicking the active column flips direction; clicking any other column starts it
+descending, which is the useful default for dates and counts. The filter and
+search terms ride along in the link so sorting never silently drops them.
+{% endcomment %}
+<th scope="col" class="{% if sort == key %}listening-sorted{% endif %}">
+    <a href="?sort={{ key }}&amp;dir={% if sort == key and direction == 'desc' %}asc{% else %}desc{% endif %}{% if item_type != 'all' %}&amp;type={{ item_type }}{% endif %}{% if query %}&amp;q={{ query|urlencode }}{% endif %}">
+        {{ label }}{% if sort == key %}<span class="listening-caret" aria-hidden="true">{% if direction == 'desc' %}▾{% else %}▴{% endif %}</span>{% endif %}
+    </a>
+</th>
