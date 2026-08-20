@@ -40,12 +40,14 @@
             <a class="listening-clear" href="{% url 'listening-home' %}">Clear</a>
             {% endif %}
 
-            {# The downloads are submit buttons of THIS form, using formaction to
-               retarget it. That means they send whatever the controls currently
-               hold — so picking "Podcasts" and hitting CSV downloads podcasts
-               even without pressing Apply first. Server-rendered links couldn't
-               do that: they only ever reflected the last submitted request, so an
-               unsubmitted dropdown change silently downloaded everything. #}
+            {% comment %}
+            The downloads are submit buttons of THIS form, using formaction to
+            retarget it. That means they send whatever the controls currently hold —
+            so picking "Podcasts" and hitting CSV downloads podcasts even without
+            pressing Apply first. Server-rendered links couldn't do that: they only
+            ever reflected the last submitted request, so an unsubmitted dropdown
+            change silently downloaded everything.
+            {% endcomment %}
             <span class="listening-downloads">
                 <span class="listening-label">Download</span>
                 <button type="submit" class="listening-download-button"

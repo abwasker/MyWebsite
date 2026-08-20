@@ -169,7 +169,16 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Presentation timezone. With USE_TZ = True below, storage is ALWAYS UTC in the
+# database regardless of this value — Django converts on the way in and out, so
+# changing this needs no migration and rewrites no data. It only changes what
+# rendered dates say.
+#
+# Set to Chicago because every displayed time was reading five hours ahead of the
+# wall clock (a listen stored 18:31 UTC happened at 13:31 CDT). Use the zone NAME,
+# never a fixed offset like -05:00: the name carries the CDT/CST rules, so the
+# November transition handles itself.
+TIME_ZONE = 'America/Chicago'
 
 USE_I18N = True
 
