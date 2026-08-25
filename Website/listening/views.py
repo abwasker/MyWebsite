@@ -1,23 +1,32 @@
-"""The staff-gated listening table and its downloads (scope Phase 3b / 3d).
+"""The permission-gated listening table and its downloads (scope Phase 3b / 3d).
 
 Decisions worth knowing before changing anything here:
 
-* **Gated on ``is_staff``, not merely ``login_required``** (§4.3). Public signup
-  is disabled, so today any authenticated user is the owner and the two would be
-  equivalent — but the parent project plans 3-5 additional blog authors, and the
-  moment those accounts exist a bare ``login_required`` would silently hand them
-  personal listening data. No code change, no warning. Staff-gating from day one
-  makes that leak impossible.
+* **Gated on an explicit permission, ``listening.view_dashboard``** — not on
+  ``login_required`` and deliberately no longer on ``is_staff`` either (§4.3,
+  and the parent scope's §4.8.1).
+
+  ``is_staff`` only ever meant "may open Django's /admin/". It is an admin-site
+  flag, not a trust level. The parent project plans 3-5 blog authors, and the
+  moment one is given staff so they can write posts, a staff-gated page would
+  hand them this private data in the same act — no code change, no warning.
+  Gating on a permission makes admin access and feature access independent: a
+  non-staff account can hold this permission, and a staff account without it
+  gets nothing.
 * **The download is a second door to the same private data**, so it carries the
-  same gate, enforced in its own view rather than inherited or assumed.
+  same gate, enforced on its own view rather than inherited or assumed.
+* ⚠️ **Django's admin is a THIRD door** that this does not close: a staff user
+  holding ``listening.view_listeningitem`` can browse the same rows at
+  /admin/listening/listeningitem/. Consequence recorded in the parent scope
+  §4.8 — the future "Blog Author" group must hold the ``blog.*`` permissions and
+  none of the ``listening.*`` ones.
 * **The table counts sessions, not observations** (§4 / ``stats.session_counts``).
 * **The filter lives in one place** (``export.filtered_items``), used by the page,
   the download and the management command. "The download matches the screen" has
   to mean the same code, or it will drift.
 """
 
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
@@ -27,6 +36,11 @@ from . import export
 from .stats import humanize_ms, session_counts, session_gap
 
 PER_PAGE = 25
+
+# One constant, used by both views, so the page and the download can never end up
+# checking different things — the same single-source rule export.filtered_items()
+# follows. Declared on the ListeningAccess anchor model in models.py.
+LISTENING_PERMISSION = "listening.view_dashboard"
 
 # Whitelist of sortable columns. User input is never passed to order_by()
 # directly — an unrecognised key falls back to the default rather than reaching
@@ -54,16 +68,6 @@ DOWNLOAD_CONTENT_TYPES = {
 DOWNLOAD_EXTENSIONS = {"csv": "csv", "markdown": "md"}
 
 
-def require_staff(request):
-    """Refuse anyone who isn't staff.
-
-    Raises PermissionDenied (403) rather than redirecting: the visitor IS logged
-    in, so bouncing them to a login form would be a dead end.
-    """
-    if not request.user.is_staff:
-        raise PermissionDenied("The listening tracker is limited to staff accounts.")
-
-
 def read_filters(request):
     """The type/search filter as the request asked for it, validated.
 
@@ -77,9 +81,9 @@ def read_filters(request):
 
 
 @login_required
+@permission_required(LISTENING_PERMISSION, raise_exception=True)
 def listening_home(request):
-    """The listening table. Staff only."""
-    require_staff(request)
+    """The listening table. Requires listening.view_dashboard."""
 
     sort = request.GET.get("sort", DEFAULT_SORT)
     if sort not in SORT_FIELDS:
@@ -149,16 +153,15 @@ def listening_home(request):
 
 
 @login_required
+@permission_required(LISTENING_PERMISSION, raise_exception=True)
 def listening_download(request, output_format):
-    """Download the current view of the table. Staff only.
+    """Download the current view of the table. Requires listening.view_dashboard.
 
     Honours the same ``type`` and ``q`` parameters as the page, so a link built
     from the page's own query string yields exactly the rows on screen. A
     download that ignored the active filter would be a trap: you would ask for
     podcasts and silently receive everything.
     """
-    require_staff(request)
-
     if output_format not in export.RENDERERS:
         raise Http404("Unknown export format")
 

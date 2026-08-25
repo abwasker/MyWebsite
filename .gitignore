@@ -24,6 +24,24 @@ Website/db.sqlite3-journal
 Website/db.sqlite3-wal
 Website/db.sqlite3-shm
 
+# Any database or dump, ANYWHERE in the tree - not just the one path above.
+# Added 2026-08-25 after checking: the rules above match an EXACT PATH, so a stray
+# `db.sqlite3` at the repo root, a `Website/test.sqlite3`, or a `backup.sql` were all
+# committable. Not hypothetical here - the 10.11/10.12 content transfers write dumpdata
+# files, Phase F backups write .sql dumps, and work moves between two machines, so a
+# dump landing somewhere convenient is a matter of time. Every one of these formats
+# contains auth_user - i.e. password hashes - and this repo is PUBLIC.
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.sql
+*.sql.gz
+*.dump
+db-backups/
+
 # Ignore collectstatic output (regenerated on the server)
 Website/staticfiles/
 
