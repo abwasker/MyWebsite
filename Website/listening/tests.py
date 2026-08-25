@@ -21,7 +21,7 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
@@ -98,6 +98,32 @@ def recent_entry(played_at="2026-08-10T17:49:36.849Z", track_id=TRACK_ID, name="
             "external_urls": {"spotify": f"https://open.spotify.com/track/{track_id}"},
         },
     }
+
+
+TEST_PASSWORD = "pw-for-test-only"
+
+
+def listening_permission():
+    """The custom page-level permission declared on ListeningAccess."""
+    return Permission.objects.get(
+        codename="view_dashboard", content_type__app_label="listening"
+    )
+
+
+def user_with_listening_access(username="owner", **flags):
+    """A user who may see the dashboard because of a PERMISSION, not a flag.
+
+    Note these users are deliberately created WITHOUT is_staff: the whole point
+    of the gate is that feature access no longer rides on the admin-site flag.
+    """
+    user = User.objects.create_user(username=username, password=TEST_PASSWORD, **flags)
+    user.user_permissions.add(listening_permission())
+    return user
+
+
+def user_without_listening_access(username="blogauthor", **flags):
+    """A stand-in for a future blog author: an account with no listening rights."""
+    return User.objects.create_user(username=username, password=TEST_PASSWORD, **flags)
 
 
 class _Response:
@@ -579,12 +605,18 @@ class EstimatedTimeTests(TestCase):
 
 
 class ListeningPageAccessTests(TestCase):
-    """Access control on /listening/ (scope §4.3).
+    """Access control on /listening/ (scope §4.3, parent scope §4.8.1).
 
-    The case that matters is the authenticated NON-STAFF user: the parent project
-    plans 3-5 blog authors, and with a bare @login_required their accounts would
-    silently gain access to personal listening data. That failure has no symptom
-    — nothing errors, nothing logs — so it only ever shows up in a test.
+    The gate is the custom permission ``listening.view_dashboard``, NOT ``is_staff``.
+    That distinction is the whole point, and it is the reason this class is worth
+    reading: ``is_staff`` only ever meant "may open Django's /admin/". The parent
+    project plans 3-5 blog authors, so the moment one is given staff to write posts,
+    a staff-gated page would hand them private listening data in the same act — no
+    error, no log, no symptom. Only a test ever sees it.
+
+    Note also that none of these can be verified from Anosh's own session: he is a
+    superuser, and superusers bypass every permission check, so a working gate and
+    a broken one look identical from there.
     """
 
     def setUp(self):
@@ -592,29 +624,106 @@ class ListeningPageAccessTests(TestCase):
 
     def test_anonymous_visitor_is_redirected_to_login(self):
         response = self.client.get(self.url)
+        # login_required is the OUTER decorator, so it wins before the permission
+        # check can turn this into a bare 403.
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login/", response["Location"])
 
-    def test_authenticated_non_staff_user_is_forbidden(self):
-        User.objects.create_user(username="blogauthor", password="pw-for-test-only")
-        self.client.login(username="blogauthor", password="pw-for-test-only")
+    def test_authenticated_user_without_permission_is_forbidden(self):
+        user_without_listening_access()
+        self.client.login(username="blogauthor", password=TEST_PASSWORD)
 
         response = self.client.get(self.url)
         # 403, not a redirect: they ARE logged in, so bouncing them to a login
         # form would be a dead end.
         self.assertEqual(response.status_code, 403)
 
-    def test_staff_user_gets_the_page(self):
-        User.objects.create_user(username="owner", password="pw-for-test-only", is_staff=True)
-        self.client.login(username="owner", password="pw-for-test-only")
+    def test_staff_alone_no_longer_grants_access(self):
+        """THE test for this change.
+
+        A staff account with no listening permission must be refused. Before the
+        permission existed this exact user was allowed in, so if this ever goes
+        green-by-accident the gate has regressed to the old flag.
+        """
+        User.objects.create_user(
+            username="futureauthor", password=TEST_PASSWORD, is_staff=True
+        )
+        self.client.login(username="futureauthor", password=TEST_PASSWORD)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_permission_without_staff_is_enough(self):
+        """The other half: feature access does not depend on admin access.
+
+        This user cannot open /admin/ at all, and can still read the dashboard.
+        """
+        user = user_with_listening_access()
+        self.assertFalse(user.is_staff)
+        self.client.login(username="owner", password=TEST_PASSWORD)
 
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "listening/listening_home.html")
 
+    def test_permission_granted_through_a_group_is_enough(self):
+        """Groups are how access will actually be handed out (§4.8.5), so the
+        group path needs its own test — a direct grant proves less."""
+        group = Group.objects.create(name="Listening")
+        group.permissions.add(listening_permission())
+
+        user = User.objects.create_user(username="viewer", password=TEST_PASSWORD)
+        user.groups.add(group)
+
+        self.client.login(username="viewer", password=TEST_PASSWORD)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_removing_the_group_revokes_access(self):
+        """Revocation has to work, not just granting."""
+        group = Group.objects.create(name="Listening")
+        group.permissions.add(listening_permission())
+        user = User.objects.create_user(username="viewer", password=TEST_PASSWORD)
+        user.groups.add(group)
+        self.client.login(username="viewer", password=TEST_PASSWORD)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+        user.groups.remove(group)
+
+        # The per-request permission cache lives on the request's own user object,
+        # so a fresh request sees the change immediately.
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_superuser_bypasses_the_permission(self):
+        """Documents the bypass rather than leaving it as folklore.
+
+        A superuser holds no listening permission and still gets in, because
+        has_perm() short-circuits to True. This is why prod (one superuser) sees
+        no behavioural change from this work at all.
+        """
+        superuser = User.objects.create_superuser(
+            username="anosh", email="a@example.com", password=TEST_PASSWORD
+        )
+        self.assertFalse(superuser.user_permissions.exists())
+        self.client.login(username="anosh", password=TEST_PASSWORD)
+
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_inactive_user_is_locked_out_despite_holding_the_permission(self):
+        """is_active is the kill switch: ModelBackend refuses every permission."""
+        user = user_with_listening_access()
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        # Deactivation invalidates the session too, so this is a redirect rather
+        # than a 403 — the account cannot authenticate at all any more.
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
     def test_page_is_not_advertised_in_the_navigation(self):
-        User.objects.create_user(username="owner", password="pw-for-test-only", is_staff=True)
-        self.client.login(username="owner", password="pw-for-test-only")
+        user_with_listening_access()
+        self.client.login(username="owner", password=TEST_PASSWORD)
 
         response = self.client.get(reverse("home"))
         self.assertNotContains(response, 'href="/listening/"')
@@ -625,9 +734,7 @@ class ListeningPageContentTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(
-            username="owner", password="pw-for-test-only", is_staff=True
-        )
+        cls.user = user_with_listening_access()
         base = timezone.now() - timezone.timedelta(days=1)
 
         cls.episode = ListeningItem.objects.create(
@@ -853,9 +960,7 @@ class ExportListeningTests(TestCase):
 
     def test_export_sessions_agree_with_the_page(self):
         """The export must not quietly disagree with what the screen shows."""
-        user = User.objects.create_user(
-            username="owner", password="pw-for-test-only", is_staff=True
-        )
+        user = user_with_listening_access()
         self.client.force_login(user)
         response = self.client.get(reverse("listening-home"))
         page_sessions = {row["item"].name: row["sessions"] for row in response.context["rows"]}
@@ -957,10 +1062,8 @@ class ListeningDownloadTests(TestCase):
     def url(self, output_format="csv"):
         return reverse("listening-download", args=[output_format])
 
-    def login_staff(self):
-        user = User.objects.create_user(
-            username="owner", password="pw-for-test-only", is_staff=True
-        )
+    def login_permitted(self):
+        user = user_with_listening_access()
         self.client.force_login(user)
         return user
 
@@ -974,26 +1077,44 @@ class ListeningDownloadTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login/", response["Location"])
 
-    def test_authenticated_non_staff_user_cannot_download(self):
-        User.objects.create_user(username="blogauthor", password="pw-for-test-only")
-        self.client.login(username="blogauthor", password="pw-for-test-only")
+    def test_authenticated_user_without_permission_cannot_download(self):
+        user_without_listening_access()
+        self.client.login(username="blogauthor", password=TEST_PASSWORD)
 
         for output_format in ("csv", "markdown"):
             response = self.client.get(self.url(output_format))
             self.assertEqual(
                 response.status_code, 403,
-                f"{output_format} download was not refused for a non-staff user",
+                f"{output_format} download was not refused without the permission",
+            )
+
+    def test_staff_alone_cannot_download(self):
+        """The download is its own door; staff must not open it either.
+
+        Symmetry with test_staff_alone_no_longer_grants_access. Gating the page
+        and leaving the export reachable is the exact shape of leak this project
+        has already shipped once (2026-08-19, the filter-ignoring download).
+        """
+        User.objects.create_user(
+            username="futureauthor", password=TEST_PASSWORD, is_staff=True
+        )
+        self.client.login(username="futureauthor", password=TEST_PASSWORD)
+
+        for output_format in ("csv", "markdown"):
+            self.assertEqual(
+                self.client.get(self.url(output_format)).status_code, 403,
+                f"{output_format} download was reachable with is_staff alone",
             )
 
     def test_unknown_format_is_a_404(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("xlsx"))
         self.assertEqual(response.status_code, 404)
 
     # --- response shape ---------------------------------------------------
 
     def test_csv_download_headers(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"))
 
         self.assertEqual(response.status_code, 200)
@@ -1003,7 +1124,7 @@ class ListeningDownloadTests(TestCase):
         self.assertIn(f'filename="listening-{stamp}.csv"', response["Content-Disposition"])
 
     def test_markdown_download_headers(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("markdown"))
 
         self.assertEqual(response["Content-Type"], "text/markdown; charset=utf-8")
@@ -1011,18 +1132,18 @@ class ListeningDownloadTests(TestCase):
         self.assertIn(f'filename="listening-{stamp}.md"', response["Content-Disposition"])
 
     def test_csv_download_starts_with_a_bom(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"))
         # Without it, Excel reads the accented names in the local codepage.
         self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
 
     def test_markdown_download_has_no_bom(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("markdown"))
         self.assertFalse(response.content.startswith(b"\xef\xbb\xbf"))
 
     def test_download_preserves_non_ascii(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"))
         self.assertIn("Bukvić", self.body(response))
         self.assertIn("Сomfort", self.body(response))
@@ -1030,7 +1151,7 @@ class ListeningDownloadTests(TestCase):
     # --- THE point of this phase: the download follows the filter ---------
 
     def test_type_filter_is_honoured(self):
-        self.login_staff()
+        self.login_permitted()
 
         response = self.client.get(self.url("csv"), {"type": "episode"})
         rows = list(csv.DictReader(StringIO(self.body(response))))
@@ -1043,25 +1164,25 @@ class ListeningDownloadTests(TestCase):
         self.assertEqual(rows[0]["name"], "Сomfort")
 
     def test_search_filter_is_honoured(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"), {"q": "Bukvić"})
         rows = list(csv.DictReader(StringIO(self.body(response))))
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["creator"], "Dalibor Bukvić")
 
     def test_filename_names_the_active_filter(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"), {"type": "episode"})
         self.assertIn("listening-episode-", response["Content-Disposition"])
 
     def test_unfiltered_download_contains_everything(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"))
         rows = list(csv.DictReader(StringIO(self.body(response))))
         self.assertEqual(len(rows), 2)
 
     def test_bogus_filter_values_fall_back_rather_than_erroring(self):
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"), {"type": "../../etc/passwd"})
         self.assertEqual(response.status_code, 200)
         rows = list(csv.DictReader(StringIO(self.body(response))))
@@ -1069,7 +1190,7 @@ class ListeningDownloadTests(TestCase):
 
     def test_download_matches_the_filtered_page_exactly(self):
         """The whole promise of the feature, asserted end to end."""
-        self.login_staff()
+        self.login_permitted()
 
         page = self.client.get(reverse("listening-home"), {"type": "episode"})
         page_names = [row["item"].name for row in page.context["rows"]]
@@ -1097,7 +1218,7 @@ class ListeningDownloadTests(TestCase):
         whatever the controls currently hold, so the file always matches the
         controls — submitted or not.
         """
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(reverse("listening-home"))
         html = response.content.decode()
 
@@ -1121,13 +1242,13 @@ class ListeningDownloadTests(TestCase):
         buttons vanish exactly when someone is mid-way through changing the
         filter to something that does match.
         """
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(reverse("listening-home"), {"q": "definitely-no-match"})
         self.assertContains(response, 'formaction="/listening/download/csv/"')
 
     def test_download_of_an_empty_filter_is_a_header_only_file(self):
         """A filter matching nothing yields an empty table, not an error."""
-        self.login_staff()
+        self.login_permitted()
         response = self.client.get(self.url("csv"), {"q": "definitely-no-match"})
 
         self.assertEqual(response.status_code, 200)

@@ -29,18 +29,39 @@ portfolio_content = {
             "details": "Built personal and client web projects with Django, focusing on clear UX and stable deployment workflows.",
         }
     ],
+    # Shown on BOTH the portfolio page and the (password-protected) resume, so
+    # keep entries useful in either context.
+    #
+    # `url` is optional: a project with no url renders as a description only.
+    # That exists for work that has nowhere public to send someone.
     "projects": [
         {
             "name": "A Notion To Ponder",
-            "description": "A combined portfolio and blog platform for publishing posts and showcasing work.",
+            "description": "This site: a Django blog and portfolio platform with posts, poetry, "
+                           "comment moderation, and a hardened production deployment behind "
+                           "nginx and gunicorn.",
             "url": "/",
             "link_label": "View Website",
         },
         {
-            "name": "Personal Learning Projects",
-            "description": "A collection of experiments around APIs, frontend UI patterns, and backend architecture.",
-            "url": "/blog/",
-            "link_label": "Read Blog",
+            "name": "Speed Reader",
+            "description": "A browser tool for reading at a set pace, one chunk at a time, "
+                           "without the eye having to travel back across the line.",
+            "url": "/speed-reader/",
+            "link_label": "Open Speed Reader",
+        },
+        {
+            "name": "Spotify Listening Tracker",
+            "description": "A Django app that builds the listening history Spotify's API will "
+                           "not give you: it polls for what is playing, accumulates songs and "
+                           "podcast episodes into its own tables, and groups repeated "
+                           "observations into real listening sessions. The data is private, so "
+                           "the page itself is not public.",
+            # Deliberately NOT linked to /listening/ — that page is staff-only, so a
+            # public link would only bounce visitors to a login form, and the scope
+            # (§4.3) says keep the route unadvertised.
+            "url": "https://github.com/abwasker/MyWebsite",
+            "link_label": "View Source",
         },
         {
             "name": "Resume Access",

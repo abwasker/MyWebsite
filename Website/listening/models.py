@@ -233,3 +233,31 @@ class PlayEvent(models.Model):
 
     def __str__(self):
         return f"{self.item.name} @ {self.played_at:%Y-%m-%d %H:%M}"
+
+
+class ListeningAccess(models.Model):
+    """Permission anchor. No table, no rows, never instantiated.
+
+    Exists only to declare a *page-level* permission. "Can view the listening
+    dashboard" isn't a fact about any model row, so hanging it on ``ListeningItem``
+    would file it somewhere misleading.
+
+    ``managed = False`` means Django creates no table for this. It still creates
+    the ContentType and the Permission row, because ``create_permissions`` walks
+    every model in an installed app, managed or not.
+
+    Deliberately NOT registered in admin.py — there is nothing to list.
+
+    WHY A PERMISSION AND NOT ``is_staff``
+    -------------------------------------
+    ``is_staff`` means "may open Django's /admin/". It is an admin-site flag, not
+    a trust level. The parent project plans 3-5 blog authors; the moment one is
+    given staff so they can write posts, a staff-gated page would hand them this
+    private data in the same act — no code change, no warning. Gating on an
+    explicit permission makes admin access and feature access independent.
+    """
+
+    class Meta:
+        managed = False            # no CREATE TABLE
+        default_permissions = ()   # and none of the add/change/delete/view four
+        permissions = [("view_dashboard", "Can view the listening dashboard")]

@@ -19,26 +19,15 @@
         </p>
     </section>
 
-    <section class="card">
-        <h3>Skills</h3>
-        <ul class="chip-list">
-            {% for skill in portfolio.skills %}
-            <li>{{ skill }}</li>
-            {% endfor %}
-        </ul>
-    </section>
+    {% comment %}
+    Skills and Featured Experience deliberately removed: they made this page read as
+    a second resume, and the resume is its own thing behind its own gate. The
+    underlying data still exists in portfolio_content because resume.html renders it.
+    This page is now the projects page.
 
-    <section class="card">
-        <h3>Featured Experience</h3>
-        {% with item=portfolio.experience.0 %}
-        <article class="resume-item">
-            <h4>{{ item.role }}</h4>
-            <p class="meta">{{ item.company }} | {{ item.period }}</p>
-            <p>{{ item.details }}</p>
-        </article>
-        {% endwith %}
-    </section>
-
+    NOTE: {% comment %}, not {# #} — the latter is SINGLE-LINE only in Django, so a
+    multi-line {# #} renders as visible text on the page.
+    {% endcomment %}
     <section class="card projects-card">
         <h3>Projects</h3>
         <div class="project-grid">
@@ -46,7 +35,9 @@
             <article class="project-item">
                 <h4>{{ project.name }}</h4>
                 <p>{{ project.description }}</p>
+                {% if project.url %}
                 <a href="{{ project.url }}">{{ project.link_label }}</a>
+                {% endif %}
             </article>
             {% endfor %}
         </div>
