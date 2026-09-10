@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Study dashboard | {{ path.title }}{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.1" />
+{% include "learning/_katex.html" %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+GATED — learning.view_study_layer.
+
+This replaces the vault's SEVEN dataview/tasks blocks: Module Progress, Concepts
+by Status, Completed Concepts, Open Study Tasks, Open Questions, My Question
+Notes, Recently Touched — plus an overall progress figure Dataview could not
+easily compute. That is the whole argument for this project: a database does
+this job properly, a plugin only approximates it.
+{% endcomment %}
+<section class="learning-overview learning-dashboard">
+
+  <p class="learning-eyebrow">Study dashboard</p>
+  <h2><a href="{% url 'learning-path' path.slug %}">{{ path.title }}</a></h2>
+
+  <div class="learning-progress">
+    <div class="learning-progress-bar">
+      <span style="width: {{ progress_pct }}%"></span>
+    </div>
+    <p class="learning-meta">{{ progress_done }} of {{ progress_total }} done · {{ progress_pct }}%</p>
+  </div>
+
+  <h3>Module progress</h3>
+  <ul class="learning-list">
+    {% for module in modules %}
+      <li>
+        <a href="{% url 'learning-study' path.slug 'modules' module.slug %}">{{ module.title }}</a>
+        <span class="learning-status is-{{ module.user_status }}">{{ module.user_status }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <h3>Concepts still open</h3>
+  {% if concepts_open %}
+    <ul class="learning-index">
+      {% for concept in concepts_open %}
+        <li>
+          <a href="{% url 'learning-study' path.slug 'concepts' concept.slug %}">{{ concept.title }}</a>
+          <span class="learning-status is-{{ concept.user_status }}">{{ concept.user_status }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="learning-meta">Nothing open.</p>
+  {% endif %}
+
+  <h3>Completed concepts</h3>
+  {% if concepts_done %}
+    <ul class="learning-index">
+      {% for concept in concepts_done %}
+        <li><a href="{% url 'learning-concept' path.slug concept.slug %}">{{ concept.title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="learning-meta">None yet.</p>
+  {% endif %}
+
+  <h3>Open study tasks</h3>
+  {% if open_tasks %}
+    <ul class="learning-tasks">
+      {% for task in open_tasks %}
+        <li>
+          {{ task.text }}
+          <span class="learning-meta">— {{ task.note.title }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="learning-meta">No open tasks.</p>
+  {% endif %}
+
+  <h3>Open questions</h3>
+  {% if open_questions %}
+    <ul class="learning-list">
+      {% for question in open_questions %}
+        <li>
+          {{ question.title }}
+          {% if question.note %}
+            <span class="learning-meta">— {{ question.note.title }}</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="learning-meta">No open questions.</p>
+  {% endif %}
+
+  {% if answered_questions %}
+    <h3>Recently answered</h3>
+    <ul class="learning-list">
+      {% for question in answered_questions %}
+        <li>{{ question.title }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <h3>Recently touched</h3>
+  {% comment %}
+  USER activity, not vault_modified — the vault's own version is file mtime,
+  which here only moves when an import runs and so says nothing about study.
+  {% endcomment %}
+  {% if recent_notes or recent_statuses %}
+    <ul class="learning-list">
+      {% for user_note in recent_notes %}
+        <li>Wrote notes on <strong>{{ user_note.note.title }}</strong>
+          <span class="learning-meta">{{ user_note.updated_at|date:"d M Y, H:i" }}</span></li>
+      {% endfor %}
+      {% for status in recent_statuses %}
+        <li>Set <strong>{{ status.note.title }}</strong> to {{ status.status }}
+          <span class="learning-meta">{{ status.updated_at|date:"d M Y, H:i" }}</span></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="learning-meta">Nothing yet — statuses and notes you save will show here.</p>
+  {% endif %}
+
+</section>
+{% endblock %}

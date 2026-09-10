@@ -1,10 +1,13 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.core.cache import cache
 from django.urls import reverse
+
+from learning.models import LearningPath
 
 from .forms import CommentForm
 from .models import BlogPost, Comment, Poem
@@ -86,7 +89,34 @@ def landing_page(request):
 
 
 def portfolio_page(request):
-    return render(request, "portfolio.html", {"portfolio": portfolio_content})
+    """The projects page, plus a card for any PUBLISHED learning path.
+
+    Driven by the database rather than hardcoded, so the card reflects what is
+    actually published and gains a second path without a code change. The
+    template hides the card entirely when nothing is public — which matters,
+    because `is_public` defaults to False and production has no learning content
+    until the path is imported and published there.
+    """
+    learning_paths = (
+        LearningPath.objects.filter(is_public=True)
+        .annotate(
+            module_count=Count(
+                "notes",
+                filter=Q(notes__kind="module", notes__is_archived=False),
+                distinct=True,
+            ),
+            concept_count=Count(
+                "notes",
+                filter=Q(notes__kind="concept", notes__is_archived=False),
+                distinct=True,
+            ),
+        )
+        .order_by("title")
+    )
+    return render(request, "portfolio.html", {
+        "portfolio": portfolio_content,
+        "learning_paths": learning_paths,
+    })
 
 
 def about_page(request):

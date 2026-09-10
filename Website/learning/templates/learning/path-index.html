@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Learning | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.1" />
+{% endblock %}
+
+{% block content %}
+<section class="learning-overview">
+  <p class="learning-eyebrow">Learning</p>
+  <h2>Learning paths</h2>
+  {% for path in paths %}
+    <article class="learning-part">
+      <h3><a href="{% url 'learning-path' path.slug %}">{{ path.title }}</a></h3>
+      {% if path.goal %}<p>{{ path.goal }}</p>{% endif %}
+      <p class="learning-meta">
+        {{ path.module_count }} module{{ path.module_count|pluralize }}
+        · {{ path.concept_count }} concept{{ path.concept_count|pluralize }}
+      </p>
+    </article>
+  {% empty %}
+    <p class="learning-meta">Nothing published yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

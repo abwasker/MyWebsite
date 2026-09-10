@@ -1,0 +1,24 @@
+{% comment %}
+The reference half of a note, shared by the PUBLIC page (note.html) and the
+GATED study view (study.html).
+
+Shared as a partial rather than copied: the study view exists so the definition
+stays visible while you write about it, and two copies of this markup would
+drift within a month. `.learning-body` is the hook KaTeX scans — do not rename
+it without updating _katex.html.
+{% endcomment %}
+<h2>{{ note.title }}</h2>
+
+{% if note.module %}
+  <p class="learning-meta">
+    Part of <a href="{% url 'learning-module' path.slug note.module.slug %}">{{ note.module.title }}</a>
+  </p>
+{% endif %}
+
+{% if tags %}
+  <p class="learning-tags">
+    {% for tag in tags %}<span class="learning-tag">{{ tag.leaf }}</span>{% endfor %}
+  </p>
+{% endif %}
+
+<div class="learning-body">{{ body }}</div>

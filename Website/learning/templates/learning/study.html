@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Study: {{ note.title }} | {{ path.title }}{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.1" />
+{% include "learning/_katex.html" %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+GATED — learning.view_study_layer. Reaching this template at all means the view's
+@study_gate passed; nothing here re-checks, because a template check is
+presentation, not access control (parent scope §4.8.1).
+{% endcomment %}
+<article class="learning-note learning-study">
+
+  <nav class="learning-crumbs">
+    <a href="{% url 'learning-path' path.slug %}">{{ path.title }}</a>
+    <span aria-hidden="true">·</span>
+    <a href="{% url 'learning-dashboard' path.slug %}">Dashboard</a>
+    <span aria-hidden="true">·</span>
+    <span class="learning-kind">Studying</span>
+  </nav>
+
+  <div class="learning-studybar">
+    <form method="post" action="{% url 'learning-set-status' path.slug kind_segment note.slug %}">
+      {% csrf_token %}
+      <label for="id_status">Status</label>
+      {{ status_form.status }}
+      <button type="submit">Set</button>
+    </form>
+    <a class="learning-viewpublic" href="{{ public_url }}">View public page</a>
+  </div>
+
+  {% include "learning/_reference.html" %}
+
+  {% if tasks %}
+    <section class="learning-panel">
+      <h3>Study tasks</h3>
+      <form method="post" action="{% url 'learning-save-tasks' path.slug kind_segment note.slug %}">
+        {% csrf_token %}
+        {% comment %}
+        Value is the task's text_hash, never its row id — the importer replaces
+        StudyTask rows on every run, so an id would untick everything (§2.6.2).
+        {% endcomment %}
+        <ul class="learning-tasks learning-checklist">
+          {% for task in tasks %}
+            <li>
+              <label>
+                <input type="checkbox" name="task" value="{{ task.text_hash }}"
+                       {% if task.is_done %}checked{% endif %}>
+                <span {% if task.is_done %}class="learning-done"{% endif %}>{{ task.text }}</span>
+              </label>
+            </li>
+          {% endfor %}
+        </ul>
+        <button type="submit">Save tasks</button>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="learning-panel">
+    <h3>My notes</h3>
+    {% if user_note_html %}
+      <div class="learning-body learning-usernote">{{ user_note_html }}</div>
+    {% endif %}
+    <form method="post" action="{% url 'learning-save-note' path.slug kind_segment note.slug %}">
+      {% csrf_token %}
+      {{ note_form.body_markdown }}
+      <button type="submit">Save notes</button>
+    </form>
+  </section>
+
+  <section class="learning-panel">
+    <h3>Questions</h3>
+    {% for question in questions %}
+      <div class="learning-question {% if question.status == 'answered' %}is-answered{% endif %}">
+        <p class="learning-question-title">{{ question.title }}</p>
+        {% if question.body %}<p class="learning-meta">{{ question.body }}</p>{% endif %}
+        {% if question.answer %}<p class="learning-answer">{{ question.answer }}</p>{% endif %}
+        <form method="post"
+              action="{% url 'learning-answer-question' path.slug question.pk %}">
+          {% csrf_token %}
+          <textarea name="answer" rows="3" class="learning-editor"
+                    placeholder="What you worked out.">{{ question.answer }}</textarea>
+          <button type="submit">{% if question.answer %}Update answer{% else %}Answer{% endif %}</button>
+        </form>
+      </div>
+    {% empty %}
+      <p class="learning-meta">No questions on this note yet.</p>
+    {% endfor %}
+
+    <form method="post" action="{% url 'learning-ask-question' path.slug kind_segment note.slug %}">
+      {% csrf_token %}
+      {{ question_form.title }}
+      {{ question_form.body }}
+      <button type="submit">Add question</button>
+    </form>
+  </section>
+
+</article>
+{% endblock %}

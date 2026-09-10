@@ -36,6 +36,11 @@ urlpatterns = [
     # sitemap (Spotify Listening Tracker scope §4.3) — unlisted is not security,
     # the is_staff gate is, but there's no reason to advertise it either.
     path("listening/", include("listening.urls")),
+    # Learning paths. UNLIKE listening, these reference pages are PUBLIC by design
+    # (Fiber Bundles Learning Path scope §1.1) — only the study layer added in
+    # Phase 4 is gated. Note this roughly quintuples the site's public page count,
+    # which is why it interacts with the robots.txt / sitemap.xml backlog item.
+    path("learning/", include("learning.urls")),
 ]
 
 if settings.DEBUG:

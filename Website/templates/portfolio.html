@@ -4,7 +4,7 @@
 {% block title %}Portfolio | A Notion To Ponder{% endblock %}
 
 {% block css_files %}
-<link rel="stylesheet" href="{% static 'portfolio.css' %}?v=1.2" />
+<link rel="stylesheet" href="{% static 'portfolio.css' %}?v=1.3" />
 {% endblock %}
 
 {% block content %}
@@ -42,5 +42,32 @@
             {% endfor %}
         </div>
     </section>
+
+    {% comment %}
+    Learning paths. Rendered from the database, not hardcoded, so publishing a
+    second path needs no code change — and so this card DISAPPEARS entirely when
+    nothing is public. That matters: `is_public` defaults to False, and
+    production has no learning content until a path is imported and published
+    there, so a hardcoded card would 404 on the live site.
+
+    Reuses .project-grid / .project-item deliberately — same visual language as
+    Projects, and no new CSS to keep in step.
+    {% endcomment %}
+    {% if learning_paths %}
+    <section class="card projects-card">
+        <h3><a href="{% url 'learning-index' %}">Learning</a></h3>
+        <div class="project-grid">
+            {% for path in learning_paths %}
+            <article class="project-item">
+                <h4><a href="{% url 'learning-path' path.slug %}">{{ path.title }}</a></h4>
+                {% if path.goal %}<p>{{ path.goal|truncatewords:32 }}</p>{% endif %}
+                <p>{{ path.module_count }} module{{ path.module_count|pluralize }}
+                   · {{ path.concept_count }} concept{{ path.concept_count|pluralize }}</p>
+                <a href="{% url 'learning-path' path.slug %}">Explore the path</a>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 </main>
 {% endblock %}
