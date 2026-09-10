@@ -71,9 +71,18 @@ def substitute_wikilinks(text, note):
     return WIKILINK.sub(replace, text)
 
 
+def render_in_note_context(text, note):
+    """Render ANY markdown as if it lived in `note`: wikilinks resolved against
+    that note's path, math preserved for KaTeX.
+
+    Used for reference bodies AND for the user's own `My Notes`, so a user's
+    LaTeX and `[[wikilinks]]` behave identically to reference content — and so
+    there is exactly one renderer, per [[Spotify Listening Tracker]] §3d.
+    `nh3` inside render_markdown_text is what makes rendering user input safe.
+    """
+    return render_markdown_text(substitute_wikilinks(text or "", note), protect_math=True)
+
+
 def render_note(note):
-    """Full render for a note body: wikilinks resolved, math preserved for KaTeX."""
-    return render_markdown_text(
-        substitute_wikilinks(note.body_markdown or "", note),
-        protect_math=True,
-    )
+    """Full render for a note's own body."""
+    return render_in_note_context(note.body_markdown, note)

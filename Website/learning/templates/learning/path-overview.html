@@ -4,7 +4,7 @@
 {% block title %}{{ path.title }} | A Notion To Ponder{% endblock %}
 
 {% block css_files %}
-<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.0" />
+<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.1" />
 {% include "learning/_katex.html" %}
 {% endblock %}
 
@@ -23,6 +23,13 @@ links resolve here instead of rendering broken.
   {% if path.goal %}<p class="learning-goal learning-body">{{ path.goal }}</p>{% endif %}
 
   <p class="learning-meta">{{ module_count }} modules · {{ concept_count }} concepts</p>
+
+  {% comment %}Second and last private footprint on a public template: a link.{% endcomment %}
+  {% if perms.learning.view_study_layer %}
+    <p class="learning-study-link">
+      <a href="{% url 'learning-dashboard' path.slug %}">Study dashboard &rarr;</a>
+    </p>
+  {% endif %}
 
   <h3>The spine</h3>
   {% for part in parts %}

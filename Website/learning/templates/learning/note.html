@@ -4,7 +4,7 @@
 {% block title %}{{ note.title }} | {{ path.title }}{% endblock %}
 
 {% block css_files %}
-<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.0" />
+<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.1" />
 {% include "learning/_katex.html" %}
 {% endblock %}
 
@@ -18,22 +18,18 @@
     {% if note.part %}<span aria-hidden="true">·</span><span>{{ note.part }}</span>{% endif %}
   </nav>
 
-  <h2>{{ note.title }}</h2>
+  {% include "learning/_reference.html" %}
 
-  {% if note.module %}
-    <p class="learning-meta">
-      Part of <a href="{% url 'learning-module' path.slug note.module.slug %}">{{ note.module.title }}</a>
+  {% comment %}
+  The ENTIRE private footprint on this public page: one link, rendered only for
+  permitted users. No user-owned model is queried by this view at all, so there
+  is nothing here that could leak (scope §4.c).
+  {% endcomment %}
+  {% if perms.learning.view_study_layer %}
+    <p class="learning-study-link">
+      <a href="{% url 'learning-study' path.slug kind_segment note.slug %}">Study this note &rarr;</a>
     </p>
   {% endif %}
-
-  {% if tags %}
-    <p class="learning-tags">
-      {% for tag in tags %}<span class="learning-tag">{{ tag.leaf }}</span>{% endfor %}
-    </p>
-  {% endif %}
-
-  {# .learning-body is the hook KaTeX scans; do not rename without updating _katex.html #}
-  <div class="learning-body">{{ body }}</div>
 
   {% if concepts %}
     <section class="learning-panel">

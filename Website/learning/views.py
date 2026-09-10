@@ -96,6 +96,9 @@ def _note_page(request, path_slug, slug, kind, template):
     return render(request, template, {
         "path": path,
         "note": note,
+        # For the "Study this note" link only. Not user data — a URL segment.
+        "kind_segment": {"module": "modules", "concept": "concepts",
+                         "source": "sources"}[kind],
         "body": render_note(note),
         "backlinks": unique_backlinks,
         "tasks": note.tasks.order_by("order"),
