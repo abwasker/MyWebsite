@@ -1,0 +1,29 @@
+{% comment %}
+KaTeX, client-side.
+
+Client-side deliberately: nh3 sanitises server-rendered HTML and would strip
+KaTeX's generated markup, whereas rendering in the browser happens after
+sanitisation and is unaffected. The LaTeX reaches here byte-for-byte because
+render_markdown_text(protect_math=True) stashes math spans around Markdown.
+
+`throwOnError: false` means a malformed expression shows in red rather than
+blanking the page — for a maths site, a visible bad formula beats a blank one.
+{% endcomment %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof renderMathInElement !== "function") { return; }
+    document.querySelectorAll(".learning-body, .learning-tasks").forEach(function (el) {
+      renderMathInElement(el, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false }
+        ],
+        throwOnError: false,
+        ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+      });
+    });
+  });
+</script>

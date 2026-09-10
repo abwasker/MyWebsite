@@ -78,6 +78,7 @@ if DEBUG and not ALLOWED_HOSTS:
 INSTALLED_APPS = [
     'blog', #make django aware of our app: blog
     'listening', # private Spotify listening tracker (see the Spotify Listening Tracker scope)
+    'learning', # Obsidian learning paths: PUBLIC reference + gated study layer (see the Fiber Bundles Learning Path scope)
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

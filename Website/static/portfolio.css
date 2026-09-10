@@ -118,3 +118,20 @@ h3 {
 [data-theme="dark"] .headline {
   color: var(--olive-700);
 }
+
+/* Card and item headings can be links (the Learning card). Keep them reading as
+   headings — inherit the heading colour rather than taking the link colour, and
+   reveal the affordance on hover. Scoped to headings so ordinary card links
+   (View Source, Explore the path) are untouched. */
+.projects-card h3 a,
+.project-item h4 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.projects-card h3 a:hover,
+.projects-card h3 a:focus-visible,
+.project-item h4 a:hover,
+.project-item h4 a:focus-visible {
+  text-decoration: underline;
+}

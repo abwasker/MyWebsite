@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ path.title }} | A Notion To Ponder{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.0" />
+{% include "learning/_katex.html" %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+This page is GENERATED from the database, not imported. The vault's own MOC is
+five Dataview queries that mean nothing outside Obsidian (scope §2.7), and every
+module links back to it — which is why LearningPath.moc_filename exists, so those
+links resolve here instead of rendering broken.
+{% endcomment %}
+<section class="learning-overview">
+
+  <p class="learning-eyebrow">Learning path</p>
+  <h2>{{ path.title }}</h2>
+
+  {% if path.goal %}<p class="learning-goal learning-body">{{ path.goal }}</p>{% endif %}
+
+  <p class="learning-meta">{{ module_count }} modules · {{ concept_count }} concepts</p>
+
+  <h3>The spine</h3>
+  {% for part in parts %}
+    <div class="learning-part">
+      {% if part.name %}<h4>{{ part.name }}</h4>{% endif %}
+      {# Unordered on purpose: the titles already carry "Module 01", "Module 02"… #}
+      {# An <ol> restarts at 1 in every Part, so Part II read "1. Module 04".     #}
+      <ul class="learning-list">
+        {% for module in part.modules %}
+          <li><a href="{% url 'learning-module' path.slug module.slug %}">{{ module.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% empty %}
+    <p class="learning-meta">No modules yet.</p>
+  {% endfor %}
+
+  <h3>Concepts</h3>
+  {% for tag, concepts in concept_groups %}
+    <div class="learning-part">
+      <h4>{{ tag.leaf }}</h4>
+      <ul class="learning-index">
+        {% for concept in concepts %}
+          <li><a href="{% url 'learning-concept' path.slug concept.slug %}">{{ concept.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+  {% if orphan_concepts %}
+    <div class="learning-part">
+      <h4>Untagged</h4>
+      <ul class="learning-index">
+        {% for concept in orphan_concepts %}
+          <li><a href="{% url 'learning-concept' path.slug concept.slug %}">{{ concept.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if sources %}
+    <h3>Sources</h3>
+    <ul class="learning-list">
+      {% for source in sources %}
+        <li><a href="{% url 'learning-source' path.slug source.slug %}">{{ source.title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+</section>
+{% endblock %}

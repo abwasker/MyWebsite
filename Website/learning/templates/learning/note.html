@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ note.title }} | {{ path.title }}{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'learning/learning.css' %}?v=1.0" />
+{% include "learning/_katex.html" %}
+{% endblock %}
+
+{% block content %}
+<article class="learning-note">
+
+  <nav class="learning-crumbs">
+    <a href="{% url 'learning-path' path.slug %}">{{ path.title }}</a>
+    <span aria-hidden="true">·</span>
+    <span class="learning-kind">{{ note.get_kind_display }}</span>
+    {% if note.part %}<span aria-hidden="true">·</span><span>{{ note.part }}</span>{% endif %}
+  </nav>
+
+  <h2>{{ note.title }}</h2>
+
+  {% if note.module %}
+    <p class="learning-meta">
+      Part of <a href="{% url 'learning-module' path.slug note.module.slug %}">{{ note.module.title }}</a>
+    </p>
+  {% endif %}
+
+  {% if tags %}
+    <p class="learning-tags">
+      {% for tag in tags %}<span class="learning-tag">{{ tag.leaf }}</span>{% endfor %}
+    </p>
+  {% endif %}
+
+  {# .learning-body is the hook KaTeX scans; do not rename without updating _katex.html #}
+  <div class="learning-body">{{ body }}</div>
+
+  {% if concepts %}
+    <section class="learning-panel">
+      <h3>Concepts in this module</h3>
+      <ul class="learning-list">
+        {% for concept in concepts %}
+          <li><a href="{% url 'learning-concept' path.slug concept.slug %}">{{ concept.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if tasks %}
+    <section class="learning-panel">
+      <h3>Study tasks</h3>
+      {% comment %}
+      Read-only here. Ticking them is part of the private study layer (Phase 4),
+      which is gated on learning.view_study_layer.
+      {% endcomment %}
+      <ul class="learning-tasks">
+        {% for task in tasks %}<li>{{ task.text }}</li>{% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if backlinks %}
+    <section class="learning-panel">
+      <h3>Linked from</h3>
+      <ul class="learning-list">
+        {% for source in backlinks %}
+          <li>
+            {% if source.kind == 'module' %}
+              <a href="{% url 'learning-module' path.slug source.slug %}">{{ source.title }}</a>
+            {% elif source.kind == 'concept' %}
+              <a href="{% url 'learning-concept' path.slug source.slug %}">{{ source.title }}</a>
+            {% else %}
+              <a href="{% url 'learning-source' path.slug source.slug %}">{{ source.title }}</a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if prev_note or next_note %}
+    <nav class="learning-pager">
+      {% if prev_note %}
+        <a href="{% url 'learning-module' path.slug prev_note.slug %}">&larr; {{ prev_note.title }}</a>
+      {% else %}<span></span>{% endif %}
+      {% if next_note %}
+        <a href="{% url 'learning-module' path.slug next_note.slug %}">{{ next_note.title }} &rarr;</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+</article>
+{% endblock %}

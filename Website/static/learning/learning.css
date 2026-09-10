@@ -1,0 +1,113 @@
+/* Learning paths — public reference pages.
+   Uses the site's existing custom properties so both themes work without a
+   second palette. Adding new colours here would mean maintaining two. */
+
+.learning-note,
+.learning-overview {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+  color: var(--text);
+}
+
+.learning-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: .78rem;
+  color: var(--muted);
+  margin-bottom: .25rem;
+}
+
+.learning-crumbs { font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
+.learning-crumbs a { color: var(--moss); }
+.learning-kind { text-transform: uppercase; letter-spacing: .06em; }
+
+.learning-meta { color: var(--muted); font-size: .9rem; }
+
+.learning-tags { margin: .5rem 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+.learning-tag {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .1rem .6rem;
+  font-size: .78rem;
+  color: var(--muted);
+}
+
+/* ---- rendered note body ---- */
+.learning-body { line-height: 1.65; }
+.learning-body h2 { margin-top: 2rem; }
+.learning-body h3 { margin-top: 1.5rem; }
+.learning-body a { color: var(--moss); }
+.learning-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: .25rem 0 .25rem 1rem;
+  color: var(--muted);
+}
+.learning-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.learning-body th, .learning-body td {
+  border: 1px solid var(--border);
+  padding: .4rem .6rem;
+  text-align: left;
+}
+.learning-body th { background: var(--panel-soft); }
+
+/* A broken wikilink renders as inline CODE (see rendering.substitute_wikilinks).
+   Styled to read as "this points nowhere" rather than as ordinary code. */
+.learning-body code {
+  background: var(--panel-soft);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  padding: 0 .3rem;
+  font-size: .92em;
+}
+
+/* KaTeX inherits the page colour so display maths works in both themes. */
+.learning-body .katex { color: var(--text); }
+.learning-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: .25rem 0; }
+
+/* ---- panels ---- */
+.learning-panel {
+  margin-top: 2rem;
+  padding: 1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.learning-panel h3 { margin: 0 0 .6rem; font-size: 1rem; }
+
+.learning-list { margin: 0; padding-left: 1.2rem; }
+.learning-list li { margin: .3rem 0; }
+.learning-list a { color: var(--moss); }
+
+.learning-tasks { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+.learning-tasks li { margin: .3rem 0; }
+
+.learning-index {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .9rem;
+}
+.learning-index a { color: var(--moss); }
+
+.learning-part { margin-bottom: 1.4rem; }
+.learning-part h4 { margin: 0 0 .4rem; font-size: .95rem; color: var(--muted); }
+
+.learning-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: .9rem;
+}
+.learning-pager a { color: var(--moss); }
+
+@media (max-width: 640px) {
+  .learning-pager { flex-direction: column; }
+}
