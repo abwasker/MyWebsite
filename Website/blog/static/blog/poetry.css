@@ -95,9 +95,15 @@
   line-height: 1.75;
 }
 
+/* Kept in step with the same rule in blog/static/blog/post-detail.css — poem
+   pages load THIS file and not that one, so a change made in only one place
+   ships half-broken. See §4.12.1 for why `vertical-align: middle` rather than
+   `display: block`: side-by-side and mid-sentence embeds are intended, and
+   block would remove both. test_img_rules_match_across_stylesheets guards it. */
 .poem-content img {
   max-width: 100%;
   height: auto;
+  vertical-align: middle;
   border-radius: 14px;
   border: 1px solid var(--border);
 }

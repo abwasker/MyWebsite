@@ -8,6 +8,9 @@ the part whose failures are silent rather than loud.
 The math cases are drawn from the real Fiber Bundles corpus. `protect_math` is
 OFF by default, so the first class also pins that blog rendering is unchanged.
 """
+import re
+
+from django.conf import settings
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -287,3 +290,58 @@ class ImgAttributeAllowlistTests(SimpleTestCase):
     def test_javascript_scheme_src_is_stripped(self):
         out = str(render_markdown_text('<img src="javascript:alert(1)" alt="a">'))
         self.assertNotIn("javascript:", out)
+
+
+class EmbedLayoutContractTests(ObsidianEmbedBase):
+    """Layout behaviours that are INTENDED, not accidents (§4.12.1).
+
+    Both come from `<img>` being an inline element inside Markdown's paragraph
+    rules. They were reviewed on a rendered page 2026-09-11 and kept. A future
+    `display: block` on the img rule would silently remove both, which is why
+    they are pinned here and why the stylesheets carry a warning comment.
+    """
+
+    def test_consecutive_embeds_share_one_paragraph(self):
+        # Markdown puts adjacent lines in ONE <p>, so the images sit side by
+        # side. This is the documented way to place two images on a row.
+        out = self.render("![[diagram.png|300]]\n![[diagram.png|300]]")
+        self.assertEqual(out.count("<p>"), 1, "consecutive embeds must share one paragraph")
+        self.assertEqual(out.count("<img"), 2)
+
+    def test_blank_line_between_embeds_stacks_them(self):
+        # ...and a blank line is how an author opts out and stacks them.
+        out = self.render("![[diagram.png|300]]\n\n![[diagram.png|300]]")
+        self.assertEqual(out.count("<p>"), 2, "a blank line must split them into two paragraphs")
+
+    def test_image_stays_inside_the_sentence(self):
+        # Mid-sentence embedding is supported; the img must not be lifted out
+        # of the paragraph into a sibling of its own.
+        out = self.render("The icon ![[diagram.png|120]] sits mid-sentence.")
+        self.assertEqual(out.count("<p>"), 1)
+        self.assertRegex(out, r"<p>The icon <img[^>]*> sits mid-sentence\.</p>")
+
+
+class StylesheetParityTests(SimpleTestCase):
+    """`.post-body img` and `.poem-content img` are declared in two files, and
+    poem pages load ONLY poetry.css. Updating one and not the other is the most
+    likely way an image change ships half-broken, so compare the declarations."""
+
+    DECLARATIONS = re.compile(r"\{([^}]*)\}")
+
+    def _img_declarations(self, path):
+        source = (settings.BASE_DIR / path).read_text(encoding="utf-8")
+        index = source.index(".poem-content img")
+        body = self.DECLARATIONS.search(source[index:]).group(1)
+        return sorted(
+            line.strip().rstrip(";")
+            for line in body.split(";")
+            if line.strip()
+        )
+
+    def test_img_rules_match_across_stylesheets(self):
+        post = self._img_declarations("blog/static/blog/post-detail.css")
+        poem = self._img_declarations("blog/static/blog/poetry.css")
+        self.assertEqual(post, poem, "the two body-image rules have drifted apart")
+        # Guard against the comparison passing vacuously on two empty rules.
+        self.assertIn("vertical-align: middle", post)
+        self.assertGreaterEqual(len(post), 5)

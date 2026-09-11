@@ -68,10 +68,24 @@
   margin-bottom: 0;
 }
 
+/* Sized embeds (`![[image.png|300]]`, Scope §4.12.1) made body images smaller
+   than the column for the first time, which exposed three inline behaviours.
+   Two of them are KEPT DELIBERATELY and are pinned by tests in blog/tests.py:
+     - two embeds on consecutive lines share a <p> and sit SIDE BY SIDE
+       (a blank line between them stacks instead) — an intended authoring idiom;
+     - an image mid-sentence stays in the line.
+   `display: block` would remove both, so it is deliberately NOT used here.
+   `vertical-align: middle` keeps the image inline while dropping the ~8px of
+   descender space a baseline-aligned image reserves below itself, and centres
+   neighbours of unequal height against each other.
+   ⚠️ This rule is DUPLICATED in blog/static/blog/poetry.css — poem pages load
+   that file and NOT this one. Change both; test_img_rules_match_across_stylesheets
+   fails if they drift. */
 .post-body img,
 .poem-content img {
   max-width: 100%;
   height: auto;
+  vertical-align: middle;
   border-radius: 14px;
   border: 1px solid var(--border);
 }
