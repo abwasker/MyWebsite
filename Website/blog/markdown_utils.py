@@ -8,6 +8,15 @@ from django.utils.safestring import mark_safe
 
 OBSIDIAN_IMAGE_PATTERN = re.compile(r"!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 
+# Obsidian's rule for the pipe value, verified in the vault 2026-09-11: a
+# NUMERIC value is a size, anything else is alt text. Disambiguated by shape,
+# so one slot carries both meanings exactly as it does in Obsidian. See §4.12.1.
+#
+# [0-9] and NOT \d: Python's \d matches Unicode digits, so "٣٠٠" (Arabic-Indic)
+# would pass and emit width="٣٠٠" — invalid HTML that browsers ignore silently.
+# Leading digit 1-9: "0" is not a size, it is an invisible image.
+SIZE_HINT = re.compile(r"^([1-9][0-9]*)(?:x([1-9][0-9]*))?$")
+
 ALLOWED_TAGS = {
     "a",
     "blockquote",
@@ -39,7 +48,12 @@ ALLOWED_TAGS = {
 
 ALLOWED_ATTRIBUTES = {
     "a": {"href", "title"},
-    "img": {"alt", "src", "title"},
+    # `width`/`height` carry Obsidian's `|300` size hint (§4.12.1). Integers
+    # only — they are emitted solely when SIZE_HINT matched, so no untrusted
+    # value reaches the attribute. `style` stays out: not mainly a script
+    # vector, but unbounded, and a full-viewport overlay needs no JavaScript.
+    # `class` is reserved for alignment, which is parked.
+    "img": {"alt", "src", "title", "width", "height"},
     "th": {"align"},
     "td": {"align"},
 }
@@ -126,13 +140,41 @@ def normalize_obsidian_embeds(source, owner=None):
 
     def replace(match):
         reference_name = match.group(1).strip()
-        alt_text = (match.group(2) or "").strip()
+        pipe_value = (match.group(2) or "").strip()
         content_image = image_lookup.get(reference_name)
         if content_image is None:
+            # A miss stays literal on purpose: raising here would 500 a
+            # published page over a typo. The admin warns at save time instead.
             return match.group(0)
 
-        alt = alt_text or content_image.alt_text or reference_name
-        return f"![{alt}]({content_image.image.url})"
+        size = SIZE_HINT.match(pipe_value) if pipe_value else None
+        alt = ("" if size else pipe_value) or content_image.alt_text or reference_name
+
+        # Emit the <img> directly rather than `![alt](url)`, because Markdown's
+        # image syntax cannot carry width/height. One path for both sized and
+        # unsized embeds, so there is only one behaviour to reason about.
+        #
+        # The cost: escaping moves from Markdown to us, and getting it wrong is
+        # silent. html_escape on the alt is what closes that; nh3's allowlist is
+        # the second line, not the first.
+        #
+        # (A side benefit, not a fix: Markdown's `](url)` breaks on an
+        # UNBALANCED ")" in a path — verified. Unreachable here, since Django's
+        # get_valid_name strips ")" and spaces at upload time.)
+        attrs = [
+            f'src="{html_escape(content_image.image.url)}"',
+            f'alt="{html_escape(alt)}"',
+        ]
+        if size:
+            attrs.append(f'width="{size.group(1)}"')
+            if size.group(2):
+                # CSS `height: auto` wins over this presentational hint, so it
+                # acts as an aspect-ratio hint (no layout shift) rather than a
+                # hard height. Deliberate: a fixed height would stretch the
+                # image once max-width kicks in on a narrow screen.
+                attrs.append(f'height="{size.group(2)}"')
+
+        return "<img {}>".format(" ".join(attrs))
 
     return OBSIDIAN_IMAGE_PATTERN.sub(replace, source)
 

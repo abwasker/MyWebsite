@@ -144,3 +144,146 @@ class PortfolioLearningCardTests(TestCase):
         """The card heading is itself a link (annotated request, 2026-09-10)."""
         response = self.client.get(reverse("portfolio"))
         self.assertContains(response, 'href="/learning/"')
+
+
+# ---------------------------------------------------------------------------
+# Obsidian image embeds — §4.12.1
+#
+# These are the FIRST tests of normalize_obsidian_embeds, which has shipped
+# untested since it was written. They are split deliberately:
+#
+#   *CurrentBehaviourTests pin what already works, so Phase 2 cannot break it.
+#   *SizingTests describe behaviour that DOES NOT EXIST YET and must fail now.
+#   *AttributeAllowlistTests are the security guard, and are mutation-tested.
+# ---------------------------------------------------------------------------
+from .models import BlogPost, ContentImage
+
+
+class ObsidianEmbedBase(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.post = BlogPost.objects.create(
+            title="Embed Fixture",
+            slug="embed-fixture",
+            excerpt="fixture",
+            markdown_body="",
+        )
+        # A string may be assigned straight to an ImageField: .url resolves
+        # through MEDIA_URL without the file needing to exist on disk. These
+        # tests are about the rewriter, not about storage.
+        cls.image = ContentImage.objects.create(
+            post=cls.post,
+            image="blog/content/2026/09/diagram.png",
+            reference_name="diagram.png",
+            alt_text="a field diagram",
+        )
+
+    def render(self, src):
+        return str(render_markdown_text(src, self.post))
+
+
+class ObsidianEmbedCurrentBehaviourTests(ObsidianEmbedBase):
+    """What already works. Phase 2 must not regress any of it."""
+
+    def test_bare_embed_resolves_to_an_img(self):
+        out = self.render("![[diagram.png]]")
+        self.assertIn("<img", out)
+        self.assertIn("diagram.png", out)
+        self.assertNotIn("[[", out)
+
+    def test_alt_falls_back_to_the_row(self):
+        self.assertIn('alt="a field diagram"', self.render("![[diagram.png]]"))
+
+    def test_inline_pipe_text_overrides_the_row_alt(self):
+        self.assertIn('alt="a caption"', self.render("![[diagram.png|a caption]]"))
+
+    def test_unknown_reference_is_returned_verbatim(self):
+        # Gap 3: a miss must never raise, because that would 500 a published
+        # page over a typo. It stays literal until the admin warning lands.
+        out = self.render("![[no-such-image.png]]")
+        self.assertIn("[[no-such-image.png]]", out)
+        self.assertNotIn("<img", out)
+
+    def test_markdown_embed_form_is_left_alone(self):
+        # ever-virgin-mary on production uses this form; it bypasses the
+        # rewriter entirely and must keep working untouched.
+        out = self.render("![a caption](/media/blog/content/2026/09/x.jpeg)")
+        self.assertIn('src="/media/blog/content/2026/09/x.jpeg"', out)
+
+
+class ObsidianEmbedSizingTests(ObsidianEmbedBase):
+    """Phase 2 target behaviour. EVERY TEST HERE MUST FAIL BEFORE PHASE 2.
+
+    Obsidian's rule, verified in the vault 2026-09-11: a numeric pipe value is
+    a SIZE, any other text is ALT TEXT. Disambiguated by shape.
+    """
+
+    def test_numeric_pipe_becomes_a_width(self):
+        out = self.render("![[diagram.png|300]]")
+        self.assertIn('width="300"', out)
+        self.assertNotIn('alt="300"', out)
+
+    def test_numeric_pipe_keeps_the_row_alt_text(self):
+        self.assertIn('alt="a field diagram"', self.render("![[diagram.png|300]]"))
+
+    def test_dimension_pair_sets_both(self):
+        out = self.render("![[diagram.png|300x200]]")
+        self.assertIn('width="300"', out)
+        self.assertIn('height="200"', out)
+
+    def test_non_integer_values_are_alt_text_not_sizes(self):
+        # Obsidian sizes on positive integers only. Anything else is a caption,
+        # and must not leak into a width attribute.
+        for value in ["0", "-5", "3.5", "300px", "1e3", "٣٠٠"]:
+            with self.subTest(value=value):
+                out = self.render(f"![[diagram.png|{value}]]")
+                self.assertNotIn("width=", out)
+                self.assertIn(f'alt="{value}"', out)
+
+    def test_size_survives_inline_in_a_paragraph(self):
+        out = self.render("before ![[diagram.png|300]] after")
+        self.assertIn('width="300"', out)
+        self.assertIn("before", out)
+        self.assertIn("after", out)
+
+    def test_alt_text_is_escaped_when_we_emit_raw_html(self):
+        # THE hazard Phase 2 introduces: emitting <img> ourselves takes the
+        # escaping away from Markdown. A quote in alt text must not be able to
+        # close the attribute and add another.
+        self.image.alt_text = 'evil" onerror="alert(1)'
+        self.image.save()
+        out = self.render("![[diagram.png|300]]")
+        # The word "onerror" DOES survive — harmlessly, as text inside the alt
+        # value. What must not survive is the quote that would close the
+        # attribute and start a real handler. Assert that, not the substring.
+        self.assertIn("&quot;", out)
+        self.assertNotIn('onerror="', out)
+        self.assertNotIn('alt="evil"', out)
+
+
+class ImgAttributeAllowlistTests(SimpleTestCase):
+    """The sanitiser guard. Widening it is the point of Phase 3, so these pin
+    exactly how far it is allowed to open."""
+
+    def test_style_is_stripped(self):
+        # Not primarily a script vector — a full-viewport overlay needs no JS.
+        out = str(render_markdown_text(
+            '<img src="/m/x.png" alt="a" '
+            'style="position:fixed;top:0;left:0;width:100vw;height:100vh">'
+        ))
+        self.assertNotIn("style=", out)
+        self.assertNotIn("position:fixed", out)
+
+    def test_class_is_stripped(self):
+        # Reserved for alignment (§4.12.1, parked). Until then, nothing.
+        out = str(render_markdown_text('<img src="/m/x.png" alt="a" class="anything">'))
+        self.assertNotIn("class=", out)
+
+    def test_event_handlers_are_stripped(self):
+        out = str(render_markdown_text('<img src="/m/x.png" alt="a" onerror="alert(1)">'))
+        self.assertNotIn("onerror", out)
+
+    def test_javascript_scheme_src_is_stripped(self):
+        out = str(render_markdown_text('<img src="javascript:alert(1)" alt="a">'))
+        self.assertNotIn("javascript:", out)
