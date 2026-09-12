@@ -1,10 +1,53 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .markdown_utils import render_markdown_text
+from .markdown_utils import missing_embed_references, render_markdown_text
 from .models import BlogPost, Category, Comment, ContentImage, Poem, Tag
+
+
+class EmbedWarningMixin:
+    """Warn — without blocking — about `![[name]]` embeds matching no image.
+
+    A lookup miss renders as literal text rather than raising (see
+    `normalize_obsidian_embeds`), because a typo must never 500 a published
+    page. The cost of that choice is silence: nothing tells the author, and the
+    only detection is reading the published page. This closes the gap at save
+    time, where it is cheap to fix, and stays non-blocking so a deliberate
+    forward reference is still saveable (§4.12.1 Gap 3).
+
+    ⚠️ Runs in `save_related`, NOT `clean` or `save_model`. ContentImages arrive
+    as INLINES in the same POST, and at clean/save_model time they are not yet
+    committed — so the lookup would come back empty and every embed would be
+    reported as a miss on a first save. `save_related` runs after the inline
+    formsets commit, so it sees images added in the very same submission.
+    """
+
+    #: Name of the field holding the markdown to scan. Set on each admin,
+    #: since posts and poems keep their body under different names.
+    embed_source_field = None
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+
+        missing = missing_embed_references(
+            getattr(form.instance, self.embed_source_field, "") or "",
+            form.instance,
+        )
+        if not missing:
+            return
+
+        messages.warning(
+            request,
+            "{} image {} no uploaded image and will publish as literal text: {}. "
+            "Check the reference name, or copy the ready-made snippet from the "
+            "Images section below.".format(
+                len(missing),
+                "reference matches" if len(missing) == 1 else "references match",
+                ", ".join("![[{}]]".format(name) for name in missing),
+            ),
+        )
 
 
 class ContentImageInlineBase(admin.TabularInline):
@@ -73,7 +116,8 @@ class TagAdmin(admin.ModelAdmin):
 
 
 @admin.register(BlogPost)
-class BlogPostAdmin(admin.ModelAdmin):
+class BlogPostAdmin(EmbedWarningMixin, admin.ModelAdmin):
+    embed_source_field = "markdown_body"
     list_display = ("title", "status", "published_at", "category", "allow_comments")
     list_filter = ("status", "category", "tags", "allow_comments", "published_at")
     search_fields = ("title", "excerpt", "markdown_body")
@@ -113,7 +157,8 @@ class BlogPostAdmin(admin.ModelAdmin):
 
 
 @admin.register(Poem)
-class PoemAdmin(admin.ModelAdmin):
+class PoemAdmin(EmbedWarningMixin, admin.ModelAdmin):
+    embed_source_field = "content"
     list_display = ("title", "date", "slug")
     list_filter = ("date",)
     search_fields = ("title", "excerpt", "content")
