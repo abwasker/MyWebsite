@@ -189,3 +189,29 @@ def _content_image_lookup(owner):
         for image in manager.all()
         if image.image
     }
+
+
+def missing_embed_references(source, owner):
+    """Reference names in `source` that no usable ContentImage satisfies.
+
+    Deliberately reuses OBSIDIAN_IMAGE_PATTERN and _content_image_lookup rather
+    than re-deriving either, so this can never disagree with what actually
+    renders. A name reported here is exactly a name that `replace` above would
+    leave as literal text.
+
+    Note a row whose `image` file is empty is a miss too: the lookup skips it,
+    so the embed would publish literally even though the row exists.
+
+    Order-preserving and de-duplicated, so the admin warning reads in the order
+    the author wrote them and never repeats a name.
+    """
+    if not source:
+        return []
+
+    lookup = _content_image_lookup(owner)
+    missing = []
+    for match in OBSIDIAN_IMAGE_PATTERN.finditer(source):
+        name = match.group(1).strip()
+        if name not in lookup and name not in missing:
+            missing.append(name)
+    return missing

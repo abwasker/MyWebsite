@@ -345,3 +345,178 @@ class StylesheetParityTests(SimpleTestCase):
         # Guard against the comparison passing vacuously on two empty rules.
         self.assertIn("vertical-align: middle", post)
         self.assertGreaterEqual(len(post), 5)
+
+
+# --- §4.12.1 Gap 3: the admin warns about embeds that match no image ---------
+
+import base64
+import tempfile
+
+from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+
+from .markdown_utils import missing_embed_references
+from .models import Poem
+
+# Smallest valid PNG. ImageField validation runs it through Pillow, so the
+# bytes must really decode - a text file named .png is rejected.
+_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+class MissingEmbedReferenceTests(ObsidianEmbedBase):
+    """The helper itself, apart from any admin plumbing."""
+
+    def test_resolved_reference_is_not_reported(self):
+        self.assertEqual(missing_embed_references("![[diagram.png]]", self.post), [])
+
+    def test_unknown_reference_is_reported(self):
+        self.assertEqual(
+            missing_embed_references("![[nope.png]]", self.post), ["nope.png"]
+        )
+
+    def test_repeats_are_collapsed_and_order_is_kept(self):
+        out = missing_embed_references("![[b.png]] ![[a.png]] ![[b.png]]", self.post)
+        self.assertEqual(out, ["b.png", "a.png"])
+
+    def test_a_row_with_no_file_is_still_a_miss(self):
+        # The rewriter's lookup skips rows whose image is empty, so such an
+        # embed publishes literally. The warning must agree with that.
+        ContentImage.objects.create(
+            post=self.post, image="", reference_name="empty.png"
+        )
+        self.assertEqual(
+            missing_embed_references("![[empty.png]]", self.post), ["empty.png"]
+        )
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class EmbedWarningAdminTests(TestCase):
+    """The warning as an author actually meets it: a real admin POST."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_superuser("embedadmin", "e@example.com", "pw")
+        cls.post = BlogPost.objects.create(
+            title="Warn Fixture", slug="warn-fixture",
+            excerpt="fixture", markdown_body="",
+        )
+        cls.image = ContentImage.objects.create(
+            post=cls.post,
+            image="blog/content/2026/09/diagram.png",
+            reference_name="diagram.png",
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def _post_body(self, markdown_body, **overrides):
+        """Change-form POST for the fixture post, inlines left as-is."""
+        data = {
+            "title": self.post.title,
+            "slug": self.post.slug,
+            "excerpt": self.post.excerpt,
+            "markdown_body": markdown_body,
+            "status": self.post.status,
+            "author_name": self.post.author_name,
+            "cover_image": "",
+            "allow_comments": "on",
+            "content_images-TOTAL_FORMS": "1",
+            "content_images-INITIAL_FORMS": "1",
+            "content_images-MIN_NUM_FORMS": "0",
+            "content_images-MAX_NUM_FORMS": "1000",
+            "content_images-0-id": str(self.image.pk),
+            "content_images-0-post": str(self.post.pk),
+            "content_images-0-reference_name": self.image.reference_name,
+            "content_images-0-alt_text": "",
+        }
+        data.update(overrides)
+        return self.client.post(
+            reverse("admin:blog_blogpost_change", args=[self.post.pk]),
+            data, follow=True,
+        )
+
+    @staticmethod
+    def _warnings(response):
+        return [
+            m.message for m in response.context["messages"]
+            if m.level_tag == "warning"
+        ]
+
+    def test_typo_warns_and_names_the_reference(self):
+        warnings = self._warnings(self._post_body("![[diagrma.png]]"))
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("![[diagrma.png]]", warnings[0])
+
+    def test_resolved_reference_does_not_warn(self):
+        self.assertEqual(self._warnings(self._post_body("![[diagram.png]]")), [])
+
+    def test_the_save_still_succeeds(self):
+        # Non-blocking by design: a warning must not cost the author their edit.
+        self._post_body("![[diagrma.png]] and prose")
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.markdown_body, "![[diagrma.png]] and prose")
+
+    def test_image_added_in_the_SAME_save_does_not_warn(self):
+        # THE regression guard for running in save_related rather than clean:
+        # this image does not exist when the form is cleaned, only after the
+        # inline formset commits. In clean() every embed here would be a miss.
+        response = self._post_body(
+            "![[fresh.png]]",
+            **{
+                "content_images-TOTAL_FORMS": "2",
+                "content_images-1-id": "",
+                "content_images-1-post": str(self.post.pk),
+                "content_images-1-reference_name": "fresh.png",
+                "content_images-1-alt_text": "",
+                "content_images-1-image": SimpleUploadedFile(
+                    "fresh.png", _PNG, content_type="image/png"
+                ),
+            },
+        )
+        self.assertTrue(
+            self.post.content_images.filter(reference_name="fresh.png").exists(),
+            "precondition: the inline image must actually have been created",
+        )
+        self.assertEqual(self._warnings(response), [])
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class PoemEmbedWarningAdminTests(TestCase):
+    """Poems carry the same inline, so they need the same warning."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_superuser("poemadmin", "p@example.com", "pw")
+        cls.poem = Poem.objects.create(
+            title="Warn Poem", slug="warn-poem",
+            date="2026-09-12", excerpt="fixture", content="",
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_typo_in_a_poem_warns(self):
+        response = self.client.post(
+            reverse("admin:blog_poem_change", args=[self.poem.pk]),
+            {
+                "title": self.poem.title,
+                "slug": self.poem.slug,
+                "date": "2026-09-12",
+                "excerpt": self.poem.excerpt,
+                "content": "![[missing.png]]",
+                "content_images-TOTAL_FORMS": "0",
+                "content_images-INITIAL_FORMS": "0",
+                "content_images-MIN_NUM_FORMS": "0",
+                "content_images-MAX_NUM_FORMS": "1000",
+            },
+            follow=True,
+        )
+        warnings = [
+            m.message for m in response.context["messages"]
+            if m.level_tag == "warning"
+        ]
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("![[missing.png]]", warnings[0])
