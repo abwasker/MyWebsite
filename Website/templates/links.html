@@ -18,7 +18,7 @@
         })();
     </script>
     <link rel="stylesheet" href="{% static 'app.css' %}?v=2.0" />
-    <link rel="stylesheet" href="{% static 'links.css' %}?v=1.0" />
+    <link rel="stylesheet" href="{% static 'links.css' %}?v=1.1" />
 </head>
 
 <body class="links-body">
@@ -37,8 +37,19 @@
     </button>
 
     <main class="linktree">
-        {# Placeholder monogram — swap for a real photo/logo at static/images/ later. #}
-        <div class="lt-avatar" aria-hidden="true">AP</div>
+        {% comment %}
+          The logo carries its OWN paper circle rather than sitting transparent on
+          the frame: .lt-avatar's background is var(--panel), which is light in
+          light mode and dark in dark mode, so transparent olive artwork would be
+          invisible in one of them. aria-hidden stays because the <h1> immediately
+          below says the same thing — the mark is decorative here, not informative.
+        {% endcomment %}
+        <div class="lt-avatar" aria-hidden="true">
+            <img src="{% static 'icons/logo-circle-96.png' %}?v=1"
+                 srcset="{% static 'icons/logo-circle-96.png' %}?v=1 1x,
+                         {% static 'icons/logo-circle-192.png' %}?v=1 2x"
+                 width="96" height="96" alt="" decoding="async" />
+        </div>
         <h1 class="lt-name">A Notion To Ponder</h1>
         <p class="lt-tagline">Ideas worth considering. Lives worth living.</p>
 

@@ -21,6 +21,9 @@
   text-align: center;
 }
 
+/* Held the "AP" placeholder monogram until 2026-09-15; now frames the logo.
+   The type properties that styled those two letters are gone — the slot has no
+   text in it any more, and dead rules here would read as intentional later. */
 .lt-avatar {
   width: 96px;
   height: 96px;
@@ -30,12 +33,17 @@
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: 0 10px 26px var(--card-shadow);
-  color: var(--olive-700);
-  font-family: "Cormorant Garamond", Georgia, serif;
-  font-weight: 700;
-  font-size: 2.4rem;
-  letter-spacing: 1px;
   margin-bottom: 1rem;
+  /* The logo PNG is itself a circle; this only guards against a future
+     non-circular image bleeding over the frame's border. */
+  overflow: hidden;
+}
+
+.lt-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .lt-name {
