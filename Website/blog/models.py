@@ -1,6 +1,8 @@
 from django.conf import settings
-from django.core.exceptions import ValidationError
+from django.contrib.staticfiles import finders
+from django.core.exceptions import SuspiciousFileOperation, ValidationError
 from django.db import models
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 
@@ -77,6 +79,77 @@ class BlogPost(models.Model):
 
     def get_absolute_url(self):
         return reverse("post-details", args=[self.slug])
+
+    @property
+    def cover_upload_url(self):
+        """URL of the uploaded cover — but only if the file is actually there.
+
+        ⚠️ `{% if post.cover_upload %}` is true whenever the DATABASE FIELD holds
+        a name. It says nothing about whether the file exists. Per §4.12 media is
+        gitignored AND absent from `mysqldump`, so a row routinely outlives its
+        file — pulling production content to a dev machine does exactly that.
+        Templates that branch on the field alone then emit an `<img>` at a
+        missing path, and the reader gets a broken image with **nothing in any
+        log**. `the-divine-council` is in that state locally right now.
+
+        Returning "" here lets the template's existing `{% elif %}` / `{% else %}`
+        chain fall through to the default cover, which is the visible, correct
+        outcome rather than a silent one.
+
+        Cost: one `storage.exists()` per post per render — a single stat call on
+        a local filesystem. Cheap against the failure it prevents, but worth
+        revisiting if a listing ever pages to hundreds of posts.
+
+        See `cover_static_url` for the same guard on the other cover field.
+        """
+        name = self.cover_upload.name
+        if not name:
+            return ""
+        try:
+            if self.cover_upload.storage.exists(name):
+                return self.cover_upload.url
+        except (OSError, ValueError):
+            # Unreadable storage or a malformed name: treat as missing rather
+            # than 500 the page. A broken cover must never take a post down.
+            pass
+        return ""
+
+    @property
+    def cover_static_url(self):
+        """URL of the static cover — but only if that file actually exists.
+
+        ⚠️ An earlier version of this guard covered only `cover_upload`, on the
+        reasoning that `static/` files are committed to git so a missing one is
+        a broken deploy rather than data drift. **That was wrong, and
+        `the-divine-council` proved it:** `cover_image` is a free-text CharField
+        typed into the admin. A typo or a stale filename is DATA, exactly like a
+        media row whose file is gone — it just fails in a different directory.
+
+        Failure mode without this: `{% static %}` happily builds a URL for a file
+        that is not there (the project uses Django's plain StaticFilesStorage, so
+        nothing validates it), the page returns 200, and the reader gets a broken
+        image. Nothing appears in any log.
+
+        `finders.find()` is used rather than `staticfiles_storage.exists()`
+        because it searches the SOURCE directories, which are present both in
+        development and on the server; `staticfiles_storage` only sees what
+        `collectstatic` has gathered, so it would disagree between the two.
+
+        Cost: a few `os.path.exists` calls per post per render, uncached on
+        purpose — caching a negative result would mean adding the missing file
+        did not fix the page until the process restarted, which is a worse
+        surprise than the lookup is expensive.
+        """
+        name = (self.cover_image or "").strip()
+        if not name:
+            return ""
+        path = f"blog/images/{name}"
+        try:
+            if finders.find(path):
+                return static(path)
+        except (OSError, ValueError, SuspiciousFileOperation):
+            pass
+        return ""
 
 
 class Poem(models.Model):

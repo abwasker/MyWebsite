@@ -8,7 +8,12 @@ the part whose failures are silent rather than loud.
 The math cases are drawn from the real Fiber Bundles corpus. `protect_math` is
 OFF by default, so the first class also pins that blog rendering is unchanged.
 """
+import pathlib
 import re
+from datetime import timedelta
+
+from django.contrib.staticfiles import finders
+from django.utils import timezone
 
 from django.conf import settings
 from django.test import SimpleTestCase, TestCase
@@ -520,3 +525,140 @@ class PoemEmbedWarningAdminTests(TestCase):
         ]
         self.assertEqual(len(warnings), 1)
         self.assertIn("![[missing.png]]", warnings[0])
+
+
+class DefaultCoverTests(TestCase):
+    """A post with no cover falls back to the site logo.
+
+    Worth testing rather than eyeballing: every post in the local database
+    already has a cover, so this branch would otherwise ship unexercised and
+    only ever run on production.
+    """
+
+    def _post(self, slug, **kw):
+        return BlogPost.objects.create(
+            title="T", slug=slug, excerpt="e", markdown_body="body",
+            status=BlogPost.Status.PUBLISHED,
+            published_at=timezone.now() - timedelta(days=1), **kw)
+
+    def test_card_uses_the_wide_default_when_there_is_no_cover(self):
+        self._post("no-cover")
+        out = self.client.get(reverse("all-posts")).content.decode()
+        self.assertIn("post-default-wide.jpg", out)
+
+    def test_detail_uses_the_square_default_when_there_is_no_cover(self):
+        self._post("no-cover-detail")
+        out = self.client.get(reverse("post-details", args=["no-cover-detail"])).content.decode()
+        self.assertIn("post-default-square.jpg", out)
+
+    def test_a_real_cover_is_not_replaced_by_the_default(self):
+        """Guards the `{% else %}`: it must not fire for posts that have art."""
+        self._post("has-cover", cover_image="post-1.jpg")
+        out = self.client.get(reverse("post-details", args=["has-cover"])).content.decode()
+        self.assertIn("post-1.jpg", out)
+        self.assertNotIn("post-default", out)
+
+    def test_the_default_is_marked_decorative(self):
+        """alt="" — the fallback says nothing about this particular post."""
+        self._post("no-cover-alt")
+        out = self.client.get(reverse("post-details", args=["no-cover-alt"])).content.decode()
+        self.assertRegex(out, r'<img src="[^"]*post-default-square\.jpg[^"]*" alt="" */?>')
+
+    def test_the_default_assets_exist_on_disk(self):
+        """A template referencing a missing static file fails silently in prod."""
+        for name in ("post-default-wide.jpg", "post-default-square.jpg"):
+            self.assertTrue(finders.find(f"blog/images/{name}"), f"{name} not found by staticfiles")
+
+
+class MissingCoverFileTests(TestCase):
+    """A cover_upload row whose FILE is gone must fall back, not break.
+
+    This is the §4.12 drift case and it is live locally: `the-divine-council`
+    carries `blog/covers/2026/07/IMG_0276.jpg` while MEDIA_ROOT does not even
+    exist, because media is gitignored and absent from mysqldump. Branching on
+    the field alone emitted an <img> at a missing path — a broken image with
+    nothing in any log.
+    """
+
+    def _post(self, slug, **kw):
+        return BlogPost.objects.create(
+            title="T", slug=slug, excerpt="e", markdown_body="b",
+            status=BlogPost.Status.PUBLISHED,
+            published_at=timezone.now() - timedelta(days=1), **kw)
+
+    def test_row_without_its_file_falls_back_to_the_default(self):
+        post = self._post("ghost-cover", cover_upload="blog/covers/2026/07/gone.jpg")
+        self.assertTrue(post.cover_upload, "the field itself is truthy - that is the trap")
+        self.assertEqual(post.cover_upload_url, "", "no file on disk, so no URL")
+        out = self.client.get(reverse("post-details", args=["ghost-cover"])).content.decode()
+        self.assertIn("post-default-square.jpg", out)
+        self.assertNotIn("gone.jpg", out)
+
+    def test_a_file_that_EXISTS_is_still_used(self):
+        """The guard must not throw away working covers — the costly failure."""
+        with tempfile.TemporaryDirectory() as tmp:
+            with override_settings(MEDIA_ROOT=tmp):
+                rel = "blog/covers/2026/07/real.jpg"
+                target = pathlib.Path(tmp) / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(b"not really a jpeg, but it exists")
+                post = self._post("real-cover", cover_upload=rel)
+                self.assertTrue(post.cover_upload_url.endswith("real.jpg"))
+                out = self.client.get(reverse("post-details", args=["real-cover"])).content.decode()
+                self.assertIn("real.jpg", out)
+                self.assertNotIn("post-default", out)
+
+    def test_empty_field_is_not_a_storage_call(self):
+        self.assertEqual(self._post("no-upload").cover_upload_url, "")
+
+    def test_listing_card_also_falls_back(self):
+        self._post("ghost-card", cover_upload="blog/covers/2026/07/vanished.jpg")
+        out = self.client.get(reverse("all-posts")).content.decode()
+        self.assertIn("post-default-wide.jpg", out)
+        self.assertNotIn("vanished.jpg", out)
+
+
+class MissingStaticCoverTests(TestCase):
+    """`cover_image` naming a file that isn't there must fall back too.
+
+    Found the hard way: `the-divine-council` was pointed at `post-244.jpg`,
+    which does not exist. `cover_image` is a free-text CharField typed into the
+    admin, so a wrong filename is DATA, not a broken deploy — the same class of
+    failure as a media row outliving its file, just in another directory.
+    """
+
+    def _post(self, slug, **kw):
+        return BlogPost.objects.create(
+            title="T", slug=slug, excerpt="e", markdown_body="b",
+            status=BlogPost.Status.PUBLISHED,
+            published_at=timezone.now() - timedelta(days=1), **kw)
+
+    def test_missing_static_cover_falls_back(self):
+        post = self._post("bad-static", cover_image="post-244.jpg")
+        self.assertTrue(post.cover_image, "the field is set — that is the trap")
+        self.assertEqual(post.cover_static_url, "")
+        out = self.client.get(reverse("post-details", args=["bad-static"])).content.decode()
+        self.assertIn("post-default-square.jpg", out)
+        self.assertNotIn("post-244.jpg", out)
+
+    def test_a_static_cover_that_EXISTS_is_still_used(self):
+        """The guard must not discard working covers — the expensive failure."""
+        post = self._post("good-static", cover_image="post-1.jpg")
+        self.assertTrue(post.cover_static_url.endswith("post-1.jpg"))
+        out = self.client.get(reverse("post-details", args=["good-static"])).content.decode()
+        self.assertIn("post-1.jpg", out)
+        self.assertNotIn("post-default", out)
+
+    def test_listing_card_falls_back_too(self):
+        self._post("bad-static-card", cover_image="nope-999.jpg")
+        out = self.client.get(reverse("all-posts")).content.decode()
+        self.assertIn("post-default-wide.jpg", out)
+        self.assertNotIn("nope-999.jpg", out)
+
+    def test_a_path_traversal_name_does_not_escape(self):
+        """cover_image is free text; it must not be able to reach outside."""
+        post = self._post("traversal", cover_image="../../../settings.py")
+        self.assertEqual(post.cover_static_url, "")
+
+    def test_whitespace_only_name_is_treated_as_empty(self):
+        self.assertEqual(self._post("blank-ish", cover_image="   ").cover_static_url, "")
