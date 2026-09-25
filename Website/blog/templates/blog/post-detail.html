@@ -14,10 +14,13 @@
 <section id="summary">
     <h2>{{ post.title }}</h2>
     <article>
-        {% if post.cover_upload %}
-        <img src="{{ post.cover_upload.url }}" alt="{{ post.title }}" />
-        {% elif post.cover_image %}
-        <img src="{% static 'blog/images/'|add:post.cover_image %}" alt="{{ post.title }}" />
+        {% if post.cover_upload_url %}
+        <img src="{{ post.cover_upload_url }}" alt="{{ post.title }}" />
+        {% elif post.cover_static_url %}
+        <img src="{{ post.cover_static_url }}" alt="{{ post.title }}" />
+        {% else %}
+        {# Square asset: this slot is 110x110. See includes/post.html for why the card uses a 2:1 one instead. #}
+        <img src="{% static 'blog/images/post-default-square.jpg' %}?v=1" alt="" />
         {% endif %}
         <address>By {{ post.author_name }}</address>
         <div>

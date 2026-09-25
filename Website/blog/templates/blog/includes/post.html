@@ -2,10 +2,21 @@
 <li>
     <article class="post">
         <a href="{% url 'post-details' post.slug %}">
-            {% if post.cover_upload %}
-            <img src="{{ post.cover_upload.url }}" alt="{{ post.title }}" />
-            {% elif post.cover_image %}
-            <img src="{% static 'blog/images/'|add:post.cover_image %}" alt="{{ post.title }}" />
+            {% if post.cover_upload_url %}
+            <img src="{{ post.cover_upload_url }}" alt="{{ post.title }}" />
+            {% elif post.cover_static_url %}
+            <img src="{{ post.cover_static_url }}" alt="{{ post.title }}" />
+            {% else %}
+            {% comment %}
+              Fallback so a cover-less post still fills the card's 100%x180 band
+              instead of collapsing to a text-only card beside picture cards.
+              ⚠️ This asset is 2:1, NOT square: `object-fit: cover` on a square
+              one would centre-crop to a 180px strip and slice the top off the
+              quill and the base off the ink pot.
+              alt="" on purpose — the default says nothing about THIS post, so
+              announcing it would be noise. Real covers keep the title as alt.
+            {% endcomment %}
+            <img src="{% static 'blog/images/post-default-wide.jpg' %}?v=1" alt="" />
             {% endif %}
             <div class="post_content">
                 <h3>{{ post.title }}</h3>
