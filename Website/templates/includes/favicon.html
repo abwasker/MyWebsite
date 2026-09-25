@@ -1,0 +1,23 @@
+{% load static %}
+{% comment %}
+  Favicons (Scope §4.12 Tier 1 site chrome — committed to git, not media/).
+  One artwork at every size: the quill/ink-pot/pencil scene collapses to a
+  legible capital "A" at 16px, so there is no separate small-size drawing.
+
+  🔴 INCLUDED FROM TWO HEADS — base.html and links.html. links.html does NOT
+  extend base.html; it is the project's one standalone page, with its own
+  <!DOCTYPE> and <head>. That is why these tags live here rather than in
+  base.html: from 2026-09-15 to 2026-09-17 they were in base.html only, and
+  /links/ silently had no favicon at all. Change them HERE, once.
+  ⚠️ A browser reuses a cached favicon across an origin, so a warm tab shows
+  the icon even on a page carrying no tags. Hard-reload when verifying.
+
+  ⚠️ /favicon.ico is ALSO requested at the site ROOT by browsers that ignore
+  these tags — nginx serves it from an alias there (Scope §10.18.1). Without
+  that block every first-time visit logs a 404.
+  ⚠️ Bump ?v= on all of them together if the artwork ever changes.
+{% endcomment %}
+<link rel="icon" href="{% static 'icons/favicon.ico' %}?v=1" sizes="32x32" />
+<link rel="icon" type="image/png" sizes="16x16" href="{% static 'icons/favicon-16.png' %}?v=1" />
+<link rel="icon" type="image/png" sizes="32x32" href="{% static 'icons/favicon-32.png' %}?v=1" />
+<link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v=1" />

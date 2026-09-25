@@ -662,3 +662,47 @@ class MissingStaticCoverTests(TestCase):
 
     def test_whitespace_only_name_is_treated_as_empty(self):
         self.assertEqual(self._post("blank-ish", cover_image="   ").cover_static_url, "")
+
+
+# --- Favicon: one partial, both heads (Scope §10.18) ---
+
+
+class FaviconEverywhereTests(TestCase):
+    """The favicon shipped 2026-09-15 into base.html ONLY. `links.html` is the
+    project's one standalone template — its own <!DOCTYPE> and <head>, no
+    `{% extends %}` — so /links/ served no icon at all until 2026-09-17.
+
+    ⚠️ A browser reuses a cached favicon across an origin, so a warm tab shows
+    the icon even on a page carrying no tags. The bug survived a visual check;
+    these assertions are what actually catch it.
+    """
+
+    HEADS = ("templates/base.html", "templates/links.html")
+    ASSETS = ("favicon.ico", "favicon-16.png", "favicon-32.png", "apple-touch-icon.png")
+    INCLUDE = '{% include "includes/favicon.html" %}'
+
+    def _source(self, path):
+        return (settings.BASE_DIR / path).read_text(encoding="utf-8")
+
+    def test_every_head_renders_the_icons(self):
+        """/links/ is the regression; /about/ is the control that always worked."""
+        for name in ("links", "about"):
+            out = self.client.get(reverse(name)).content.decode()
+            self.assertIn("favicon-32.png", out, f"{name} lost its favicon tags")
+            self.assertIn("apple-touch-icon.png", out, f"{name} lost its apple-touch icon")
+
+    def test_the_icon_assets_exist_on_disk(self):
+        """A template referencing a missing static file fails silently in prod."""
+        for name in self.ASSETS:
+            self.assertTrue(finders.find(f"icons/{name}"), f"{name} not found by staticfiles")
+
+    def test_neither_head_declares_icons_itself(self):
+        """The tags live in ONE partial. A head that grows its own copy is how the
+        next icon change ships to one page and not the other — the same drift that
+        caused this bug. Bump ?v= in the partial, never in a head."""
+        for path in self.HEADS:
+            source = self._source(path)
+            self.assertNotIn('rel="icon"', source, f"{path} declares icons directly")
+            self.assertNotIn("apple-touch-icon", source, f"{path} declares icons directly")
+            # Anti-vacuous: absent tags must mean "included", not "deleted".
+            self.assertIn(self.INCLUDE, source, f"{path} lost the favicon include")
