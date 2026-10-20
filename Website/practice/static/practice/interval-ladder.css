@@ -1,0 +1,208 @@
+/* Interval Ladder — ported from the standalone artifact (scope §Phase 2).
+ *
+ * 🔴 EVERYTHING IS SCOPED UNDER .il ON PURPOSE.
+ * The artifact was a whole page: it styled `body`, set its own background, and
+ * declared its variables on :root. Dropped into base.html as-is it would fight
+ * app.css over the page background, the body font and the button reset. Scoping
+ * contains it.
+ *
+ * 📌 The variables live on `.il`, NOT on :root, for the same reason — and it
+ * makes Phase 3 a single edit: remap these values to the site tokens (paper,
+ * olive, moss) in one block instead of hunting selectors.
+ *
+ * ⚠️ Phase 2 keeps the ARTIFACT's palette deliberately. Porting and restyling at
+ * once makes it impossible to tell which change broke something.
+ */
+
+.il {
+  /* 📌 Mapped to the SITE tokens by reference, not copied. These flip with
+   * [data-theme] automatically, so the tool can never disagree with the page
+   * around it. `--muted` is deliberately NOT redefined — the site already
+   * defines it and it inherits in; redefining it as var(--muted) would be a
+   * self-reference and resolve to nothing. */
+  --surface: var(--panel);
+  --sunk: var(--bg-soft);
+  --ink: var(--text);
+  --line: var(--border);
+  --lapis: var(--olive-700);
+
+  /* The site has no success/error/accent tokens, so these are defined here and
+   * overridden for dark below. Chosen by measurement — see the header note. */
+  --lapis-soft: #e3e8dc;
+  --cinnabar: #b3361f;
+  --good: #1d7a4c;
+  --good-soft: #b4cdb9;
+  --bad: #6b1d1d;
+  --bad-soft: #cbb1ab;
+
+  --f-display: "Cormorant Garamond", Georgia, serif;
+  --f-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  /* System stack — decided 2026-10-20. Zero bytes, and the figures are few. */
+  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --f-neume: "Noto Music", "Segoe UI Symbol", serif;
+
+  color: var(--ink);
+  font-family: var(--f-body);
+  display: grid;
+  gap: 18px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* 🔴 [data-theme] ONLY — no prefers-color-scheme block, deliberately.
+ * app.css switches on the attribute alone, and base.html's boot script always
+ * sets it (from the saved choice, falling back to the OS preference). A media
+ * query here would be a SECOND source of truth, and the one case it changes
+ * anything is the case where it is wrong: a visitor on a dark OS who has
+ * toggled the site to light would get a light page with a dark widget in it.
+ *
+ * Only the four colours the site does not define need overriding — surface,
+ * sunk, ink, line and lapis are var() references and flip on their own. */
+[data-theme="dark"] .il {
+  --lapis-soft: #2a3a2b;
+  /* ⚠️ The Byzantine accent is pushed WARMER here and the error colour toward
+   * ROSE, because the obvious dark variants of cinnabar and maroon converge:
+   * measured dE 16.6, which re-creates in dark mode exactly the collision §2.9
+   * exists to prevent. At these values they sit 29.6 apart. */
+  --cinnabar: #ef9b78;
+  --good: #7fc79b;
+  --good-soft: #1c4029;
+  --bad: #e98aa0;
+  --bad-soft: #3c211b;
+}
+
+.il *,
+.il *::before,
+.il *::after { box-sizing: border-box; }
+
+.il button { font: inherit; color: inherit; cursor: pointer; }
+.il button:focus-visible,
+.il select:focus-visible { outline: 2px solid var(--lapis); outline-offset: 2px; }
+
+.il .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.il .brand h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(28px, 4.5vw, 40px); margin: 0; line-height: 1; letter-spacing: .01em; }
+.il .brand p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+.il .brand .gr { font-family: var(--f-display); color: var(--cinnabar); }
+
+.il .label { font-size: 12px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 500; }
+.il .seg { display: inline-flex; flex-wrap: wrap; background: var(--sunk); border-radius: 10px; padding: 3px; gap: 2px; }
+.il .seg button { border: 0; background: transparent; padding: 7px 12px; border-radius: 8px; font-weight: 500; font-size: 15px; color: var(--muted); }
+.il .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.il .sysbox { display: grid; gap: 6px; }
+
+.il nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.il nav.tabs button { border: 0; background: none; padding: 10px 14px; font-size: 16px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.il nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--lapis); font-weight: 500; }
+
+.il .status { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.il .practice { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 18px; align-items: start; }
+.il .ladder { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 4px; }
+.il .ladder svg { display: block; width: 100%; height: auto; }
+.il .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 18px; min-width: 0; }
+
+.il .prompt { display: grid; gap: 4px; }
+.il .prompt h3 { font-family: var(--f-display); font-weight: 400; font-size: clamp(22px, 3.4vw, 30px); margin: 0; text-wrap: balance; }
+.il .prompt p { margin: 0; color: var(--muted); }
+.il .big { font-family: var(--f-display); font-size: 1.15em; color: var(--lapis); }
+.il .neume { font-family: var(--f-neume); color: var(--cinnabar); font-size: 1.6em; line-height: 1; letter-spacing: .05em; }
+
+.il .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.il .btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 14px; border-radius: 9px; font-weight: 500; font-size: 15px; }
+.il .btn:hover { border-color: var(--lapis); }
+.il .btn.primary { background: var(--lapis); border-color: var(--lapis); color: var(--surface); }
+.il .btn[aria-pressed="true"] { background: var(--lapis-soft); border-color: var(--lapis); color: var(--lapis); }
+
+.il .answers { display: grid; gap: 8px; }
+.il .answers .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.il .ans { border: 1px solid var(--line); background: var(--sunk); border-radius: 10px; padding: 10px 6px; display: grid; justify-items: center; gap: 2px; min-height: 62px; align-content: center; position: relative; }
+/* 🔴 Hover deliberately does NOT use a colour tint. The artifact filled it with
+ * lapis-soft, but on this site's low-chroma paper palette a pale olive hover
+ * measures dE 3.3 from the pale green "correct" fill — indistinguishable. Hover
+ * is a surface lift plus a border instead, so it cannot be mistaken for a
+ * graded answer. */
+.il .ans:hover:not(:disabled) { border-color: var(--lapis); background: var(--surface); box-shadow: inset 0 0 0 1px var(--lapis); }
+.il .ans .main { font-size: 19px; font-weight: 700; }
+.il .ans .sub { font-size: 12px; color: var(--muted); font-family: var(--f-mono); }
+.il .ans .gr { font-family: var(--f-display); font-size: 13px; color: var(--muted); }
+.il .ans .neume { font-size: 24px; }
+.il .ans.ok { background: var(--good-soft); border-color: var(--good); }
+.il .ans.no { background: var(--bad-soft); border-color: var(--bad); }
+.il .ans:disabled { cursor: default; }
+
+/* 🔴 Non-colour cue (scope §2.9). Green-vs-red is exactly the pair red-green
+ * colour blindness collapses, and these buttons otherwise carry correctness as
+ * background colour alone. The mark is decorative to assistive tech because the
+ * feedback panel already states the result in words. */
+.il .ans.ok::after,
+.il .ans.no::after {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 700;
+}
+.il .ans.ok::after { content: "\2713"; color: var(--good); }
+.il .ans.no::after { content: "\2715"; color: var(--bad); }
+
+.il .rowlabel { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.il .feedback { border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; font-size: 15px; }
+.il .feedback.ok { background: var(--good-soft); }
+.il .feedback.no { background: var(--bad-soft); }
+.il .feedback strong { font-size: 17px; }
+.il .feedback .cross { font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.il .selfgrade { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.il details.settings { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 18px; }
+.il details.settings summary { cursor: pointer; padding: 12px 0; font-weight: 500; }
+.il .setgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; padding: 4px 0 18px; }
+.il .setgrid > div { display: grid; gap: 8px; align-content: start; }
+.il .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.il .chips button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 11px; font-size: 14px; }
+.il .chips button[aria-pressed="true"] { background: var(--lapis-soft); border-color: var(--lapis); color: var(--lapis); font-weight: 500; }
+.il select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.il .hint { font-size: 13px; color: var(--muted); margin: 0; }
+
+.il .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.il .card h3 { font-family: var(--f-display); font-weight: 400; font-size: 26px; margin: 0; }
+.il .card h4 { font-size: 17px; margin: 6px 0 0; }
+.il .card p { margin: 0; max-width: 68ch; }
+
+.il .tablewrap { overflow-x: auto; }
+.il table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+.il th, .il td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.il th { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 500; }
+.il td.mono { font-family: var(--f-mono); font-size: 13px; }
+.il td .gr { font-family: var(--f-display); color: var(--muted); margin-left: 6px; }
+.il .play { border: 1px solid var(--line); background: var(--sunk); border-radius: 7px; padding: 3px 9px; font-size: 13px; }
+.il .play:hover { border-color: var(--lapis); }
+.il .note { background: var(--sunk); border-radius: 10px; padding: 12px 14px; font-size: 14px; color: var(--muted); }
+
+.il .stats { display: flex; flex-wrap: wrap; gap: 28px; }
+.il .stat .v { font-family: var(--f-display); font-size: 34px; line-height: 1; }
+.il .stat .k { font-size: 13px; color: var(--muted); }
+/* flex-basis rather than min-width so the two groups match each other — their
+ * captions differ in length and uneven boxes read as a layout bug. */
+.il .statgroup { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; flex: 1 1 260px; max-width: 360px; align-content: start; }
+.il .statgroup .gl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.il .statgroup .gn { font-size: 13px; color: var(--muted); }
+
+.il .bars { display: grid; gap: 6px; }
+.il .bar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 92px; gap: 10px; align-items: center; font-size: 14px; }
+.il .bar .track { height: 12px; background: var(--sunk); border-radius: 6px; overflow: hidden; }
+.il .bar .fill { height: 100%; border-radius: 6px; }
+.il .bar .num { font-family: var(--f-mono); font-size: 12px; color: var(--muted); text-align: right; }
+.il .bar .nm .neume { font-size: 17px; margin-right: 6px; }
+
+.il .hist { display: flex; align-items: flex-end; gap: 4px; height: 90px; border-bottom: 1px solid var(--line); padding-top: 6px; }
+.il .hist div { flex: 1; max-width: 28px; background: var(--lapis); border-radius: 3px 3px 0 0; min-height: 2px; }
+
+@media (max-width: 620px) {
+  .il .practice { grid-template-columns: 86px minmax(0, 1fr); gap: 10px; }
+  .il .panel { padding: 14px; }
+  .il .bar { grid-template-columns: 104px minmax(0, 1fr) 70px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .il * { transition: none !important; animation: none !important; }
+}

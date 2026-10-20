@@ -41,6 +41,11 @@ urlpatterns = [
     # Phase 4 is gated. Note this roughly quintuples the site's public page count,
     # which is why it interacts with the robots.txt / sitemap.xml backlog item.
     path("learning/", include("learning.urls")),
+    # Ear-training drills (Music Interval Learning App scope). The PAGE is public
+    # and interactive — the site's first of that kind — while saving progress
+    # needs a login, enforced per endpoint rather than on the include. Adds public
+    # pages, so it touches the same robots.txt / sitemap.xml gap as learning/.
+    path("practice/", include("practice.urls")),
 ]
 
 if settings.DEBUG:
