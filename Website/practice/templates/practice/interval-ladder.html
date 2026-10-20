@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+Interval Ladder | A Notion To Ponder
+{% endblock %}
+
+{% block css_files %}
+{% comment %}
+  🔴 The neume font is SUBSET to the seven Byzantine glyphs actually used, via
+  Google Fonts' `text=` parameter. The full face is 178,572 bytes for those seven;
+  the subset is 5,328 — a 169 KB saving, measured both ways (scope §2.2).
+  ⚠️ If a neume is ever added to NEUME in the JS, its codepoint must be added to
+  `text=` here or it will render as a tofu box with no other symptom.
+  The escaped codepoints are U+1D046 U+1D047 U+1D04F U+1D050 U+1D051 U+1D055 U+1D056.
+
+  Cormorant Garamond and Manrope are already loaded by app.css — not repeated.
+{% endcomment %}
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&amp;text=%F0%9D%81%86%F0%9D%81%87%F0%9D%81%8F%F0%9D%81%90%F0%9D%81%91%F0%9D%81%95%F0%9D%81%96&amp;display=swap" />
+<link rel="stylesheet" href="{% static 'practice/interval-ladder.css' %}?v=2" />
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  Ported from the artifact kept at `attachments/Files/Interval Ladder.html` in
+  the vault. Scope: [[Music Interval Learning App]].
+
+  🔴 EVERYTHING IS INSIDE .il — the artifact styled `body` and declared its
+  variables on :root; unscoped it fights app.css over the background, the body
+  font and the button reset.
+  🔴 There is deliberately NO "log in to save" call to action. Public signup is
+  closed (§2.1), so for almost every visitor it would lead somewhere that cannot
+  help them. The status line states the situation instead of selling an account.
+{% endcomment %}
+<div class="il">
+    <header class="top">
+        <div class="brand">
+            <h2>Interval Ladder</h2>
+            <p>Do Re Mi &middot; 1 2 3 &middot; <span class="gr">&#925;&#951; &#928;&#945; &#914;&#959;&#965;</span> &mdash; one scale, three ways to name it.</p>
+        </div>
+        <div class="sysbox">
+            <span class="label">Name notes in</span>
+            <div class="seg" id="sysSeg">
+                <button type="button" data-sys="sol">Solf&egrave;ge</button>
+                <button type="button" data-sys="num">Numbers</button>
+                <button type="button" data-sys="byz">Byzantine</button>
+                <button type="button" data-sys="rotate">Rotate</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="tabs" role="tablist" id="tabs">
+        <button type="button" role="tab" data-tab="notes">Hear the note</button>
+        <button type="button" role="tab" data-tab="intervals">Name the interval</button>
+        <button type="button" role="tab" data-tab="sing">Sing it</button>
+        <button type="button" role="tab" data-tab="chart">Chart</button>
+        <button type="button" role="tab" data-tab="progress">Progress</button>
+    </nav>
+
+    <section id="practiceView">
+        <div class="practice">
+            <div class="ladder" id="ladder" aria-label="Scale ladder"></div>
+            <div class="panel">
+                <div class="prompt" id="prompt"></div>
+                <div class="controls" id="controls">
+                    <button type="button" class="btn" id="replayBtn">&#9654; Replay</button>
+                    <button type="button" class="btn" id="tonicBtn">Play tonic</button>
+                    <button type="button" class="btn" id="droneBtn" aria-pressed="false">Ison drone</button>
+                </div>
+                <div class="answers" id="answers"></div>
+                <div id="feedback" hidden></div>
+                <div class="controls"><button type="button" class="btn primary" id="nextBtn" hidden>Next &crarr;</button></div>
+                <p class="hint" id="keys">Keys: Space replays &middot; Enter goes to the next question &middot; 1&ndash;8 answer in &ldquo;Hear the note&rdquo;.</p>
+            </div>
+        </div>
+    </section>
+
+    <details class="settings" id="settingsBox">
+        <summary>Practice settings</summary>
+        <div class="setgrid">
+            <div>
+                <span class="label">Interval sizes</span>
+                <div class="chips" id="sizeChips"></div>
+            </div>
+            <div>
+                <span class="label">Direction</span>
+                <div class="chips" id="dirChips">
+                    <button type="button" data-dir="up">Ascending</button>
+                    <button type="button" data-dir="down">Descending</button>
+                    <button type="button" data-dir="both">Both</button>
+                </div>
+            </div>
+            <div>
+                <span class="label">Tuning</span>
+                <select id="tuningSel">
+                    <option value="auto">Match the naming system</option>
+                    <option value="west">Western equal temperament</option>
+                    <option value="byz">Byzantine diatonic (moria)</option>
+                </select>
+                <p class="hint">&ldquo;Match&rdquo; plays moria tuning when notes are named in Byzantine, equal temperament otherwise.</p>
+            </div>
+            <div>
+                <span class="label">Tonic pitch (Do / 1 / Ni)</span>
+                <select id="pitchSel"></select>
+            </div>
+            <div>
+                <span class="label">Playback</span>
+                <div class="chips" id="playChips">
+                    <button type="button" data-play="mel">One after the other</button>
+                    <button type="button" data-play="harm">Together</button>
+                </div>
+            </div>
+            <div>
+                <span class="label">Question mix</span>
+                <div class="chips"><button type="button" id="focusBtn">Favor weak intervals</button></div>
+                <p class="hint">Asks more often about intervals you miss.</p>
+            </div>
+        </div>
+        <p class="hint">
+            {% if user.is_authenticated %}
+            Settings reset when you close this tab; your practice is saved to your account.
+            {% else %}
+            Settings reset when you close this tab, and practice here is not saved.
+            {% endif %}
+        </p>
+    </details>
+
+    <section id="chartView" hidden></section>
+    <section id="progressView" hidden></section>
+</div>
+
+{{ il_config|json_script:"il-config" }}
+<script src="{% static 'practice/interval-ladder.js' %}?v=1" defer></script>
+{% endblock %}
