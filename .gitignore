@@ -53,3 +53,13 @@ Website/media/
 # Ignore IDE files
 .vscode/
 .idea/
+
+# Ignore the local onboarding copy.
+# Added 2026-10-20. ONBOARDING.md was written into the repo on 09-28; the decision
+# recorded in the build log the SAME DAY was to keep workstation onboarding OUT of
+# git and in the vault instead, as [[A Notion To Ponder - Workstation Onboarding]],
+# which is more complete (it covers all three machines). The local file is kept
+# deliberately - it is useful on this box - but must not be committed. Two
+# onboarding documents with one maintainer is exactly the drift that the shared
+# favicon partial was created to stop.
+ONBOARDING.md
