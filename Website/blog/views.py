@@ -54,6 +54,15 @@ portfolio_content = {
             "link_label": "Open Speed Reader",
         },
         {
+            "name": "Interval Ladder",
+            "description": "An ear-training tool for hearing the steps of a scale, named three "
+                           "ways: solfège, numbers, and Byzantine neumes, with a choice of "
+                           "Western or Byzantine tuning.",
+            # The page's only entry point — PR #17 shipped the app without one.
+            "url": "/practice/interval-ladder/",
+            "link_label": "Open Interval Ladder",
+        },
+        {
             "name": "Spotify Listening Tracker",
             "description": "A Django app that builds the listening history Spotify's API will "
                            "not give you: it polls for what is playing, accumulates songs and "
