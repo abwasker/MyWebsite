@@ -154,6 +154,21 @@ class PortfolioLearningCardTests(TestCase):
         self.assertContains(response, 'href="/learning/"')
 
 
+class PortfolioIntervalLadderCardTests(TestCase):
+    """The Interval Ladder's entry point. PR #17 shipped the page with no link to it."""
+
+    def test_card_links_to_the_live_route(self):
+        """The card's URL is a hardcoded string; resolve the route so the two cannot drift."""
+        response = self.client.get(reverse("portfolio"))
+        self.assertContains(response, "Interval Ladder")
+        self.assertContains(response, f'href="{reverse("interval-ladder")}"')
+
+    def test_link_target_is_public(self):
+        """The portfolio is public, so the card must not lead anonymous visitors to a login."""
+        response = self.client.get(reverse("interval-ladder"))
+        self.assertEqual(response.status_code, 200)
+
+
 # ---------------------------------------------------------------------------
 # Obsidian image embeds — §4.12.1
 #
